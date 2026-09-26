@@ -1,0 +1,269 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück" (click)="back()"></p-button>
+
+@if (loading()) {
+  <p-skeleton height="6rem" styleClass="mt-2" />
+} @else if (error()) {
+  <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+} @else if (order()) {
+  <div class="header-row">
+    <h1>{{ order()!.orderNumber }}</h1>
+    <p-tag [value]="order()!.status" [severity]="orderStatusSeverity(order()!.status)" />
+  </div>
+
+  <div class="customer-box">
+    <strong>{{ order()!.customer.first_name }} {{ order()!.customer.last_name }}</strong>
+    @if (order()!.customer.phone) {
+      <span> · {{ order()!.customer.phone }}</span>
+    }
+    @if (order()!.customer.email) {
+      <span> · {{ order()!.customer.email }}</span>
+    }
+  </div>
+
+  @if (order()!.customerMessage) {
+    <p class="customer-message"><i class="pi pi-comment"></i> <em>Kundenkommentar:</em> {{ order()!.customerMessage }}</p>
+  }
+  @if (order()!.internalNote) {
+    <p class="internal-note"><em>Interne Notiz:</em> {{ order()!.internalNote }}</p>
+  }
+  @if (order()!.cancellationReason) {
+    <p-message severity="error">Storniert: {{ order()!.cancellationReason }}</p-message>
+  }
+
+  @if (actionError()) {
+    <p-message severity="error" styleClass="mt-2 mb-2">{{ actionError() }}</p-message>
+  }
+
+  <div class="order-actions">
+    @if (order()!.status === 'New') {
+      <p-button label="Bestätigen" icon="pi pi-check" [loading]="actionRunning()" (click)="confirmOrder()"></p-button>
+    }
+    @if (order()!.status === 'Finished') {
+      <p-button label="Bereit zur Abholung" icon="pi pi-box" [loading]="actionRunning()" (click)="readyForPickup()"></p-button>
+    }
+    @if (order()!.status === 'ReadyForPickup') {
+      <p-button label="Übergabe" icon="pi pi-handshake" [loading]="actionRunning()" (click)="openHandoverDialog()"></p-button>
+    }
+    @if (order()!.status !== 'HandedOver' && order()!.status !== 'Cancelled') {
+      <p-button severity="danger" label="Bestellung stornieren" icon="pi pi-times" (click)="openCancelOrderDialog()"></p-button>
+    }
+  </div>
+
+  <h2 class="mt-4">Positionen</h2>
+  <div class="items-list">
+    @for (item of order()!.items; track item.orderItemId) {
+      <div class="item-row">
+        <div class="item-main">
+          <span>{{ item.description }} × {{ item.qty }}</span>
+          <p-tag [value]="item.status" [severity]="itemStatusSeverity(item.status)" />
+          <span class="item-price">{{ item.finalPrice !== null ? (item.finalPrice | currency: 'EUR') : '–' }}</span>
+        </div>
+        @if (item.colorChanges.length > 0) {
+          <ul class="color-history">
+            @for (change of item.colorChanges; track change.createdAt) {
+              <li>
+                <i class="pi pi-palette"></i>
+                Farbe geändert am {{ change.createdAt | date: 'dd.MM.yyyy HH:mm' }}:
+                <strong>{{ change.oldValue }}</strong> → <strong>{{ change.newValue }}</strong>
+                @if (change.reason) {
+                  <span class="color-reason">&nbsp;— {{ change.reason }}</span>
+                }
+              </li>
+            }
+          </ul>
+        }
+        <div class="item-actions">
+          @if (canChangeColor(item)) {
+            <p-button size="small" severity="secondary" [outlined]="true" icon="pi pi-palette" label="Farbe ändern" (click)="openColorDialog(item)"></p-button>
+          }
+          @if (canAssignToProduction(item)) {
+            <p-button size="small" severity="secondary" label="Zur Produktion zuordnen" (click)="openAssignDialog(item)"></p-button>
+          }
+          @if (canReproduce(item)) {
+            <p-button size="small" severity="secondary" label="Nachproduktion" (click)="openReproductionDialog(item)"></p-button>
+          }
+          @if (canCancelItem(item)) {
+            <p-button size="small" severity="danger" [text]="true" label="Stornieren" (click)="openCancelItemDialog(item.orderItemId)"></p-button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<!-- Zur Produktion zuordnen -->
+<p-dialog header="Zur Produktion zuordnen" [(visible)]="assignDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <div class="form-field">
+    <p-selectbutton
+      [options]="assignModeOptions"
+      [ngModel]="assignMode()"
+      (ngModelChange)="assignMode.set($event)"
+      optionLabel="label"
+      optionValue="value"
+    />
+  </div>
+
+  @if (assignMode() === 'bestehend') {
+    <p-select
+      [options]="assignableProductionOrders()"
+      [ngModel]="selectedProductionOrderId()"
+      (ngModelChange)="selectedProductionOrderId.set($event)"
+      optionValue="id"
+      placeholder="Produktionsauftrag wählen"
+      class="w-full"
+    >
+      <ng-template let-po #item>{{ po.status }} — geplant {{ po.planned_start | date: 'dd.MM.yyyy HH:mm' }}</ng-template>
+    </p-select>
+    @if (assignableProductionOrders().length === 0) {
+      <p-message severity="info" styleClass="mt-2">
+        Keine geplanten/laufenden Produktionsaufträge. Lege über „Neuer Auftrag“ direkt einen an.
+      </p-message>
+    }
+  } @else {
+    <div class="form-field">
+      <label>Drucker (optional)</label>
+      <p-select
+        [options]="printers()"
+        [ngModel]="newPoPrinterId()"
+        (ngModelChange)="newPoPrinterId.set($event)"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Kein Drucker"
+        [showClear]="true"
+        class="w-full"
+      />
+    </div>
+    <div class="form-field">
+      <label>Geplanter Start *</label>
+      <p-datepicker
+        [ngModel]="newPoPlannedStart()"
+        (ngModelChange)="newPoPlannedStart.set($event)"
+        [showTime]="true"
+        dateFormat="dd.mm.yy"
+        class="w-full"
+      />
+    </div>
+  }
+
+  @if (assignError()) {
+    <p-message severity="error" styleClass="mt-2">{{ assignError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button
+      [label]="assignMode() === 'bestehend' ? 'Zuordnen' : 'Anlegen und zuordnen'"
+      [disabled]="!canConfirmAssign()"
+      [loading]="actionRunning()"
+      (click)="confirmAssign()"
+    ></p-button>
+  </div>
+</p-dialog>
+
+<!-- Nachproduktion -->
+<p-dialog header="Nachproduktion" [(visible)]="reproductionDialogVisible" [modal]="true" [style]="{ width: '520px' }">
+  @for (row of reproductionAssignments(); track $index) {
+    <div class="spool-row">
+      <p-select
+        [options]="availableSpools()"
+        [ngModel]="row.spoolId"
+        (ngModelChange)="row.spoolId = $event"
+        optionLabel="label"
+        optionValue="id"
+        placeholder="Spule wählen"
+        class="spool-select"
+      >
+        <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
+      </p-select>
+      <p-inputnumber [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" />
+      <p-button severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Zeile entfernen" (click)="removeReproductionRow($index)"></p-button>
+    </div>
+  }
+  <p-button severity="secondary" label="Spule hinzufügen" icon="pi pi-plus" (click)="addReproductionRow()"></p-button>
+
+  <div class="dialog-actions">
+    <p-button label="Nachproduktion anlegen" [loading]="actionRunning()" (click)="confirmReproduction()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Übergabe -->
+<p-dialog header="Bestellung übergeben" [(visible)]="handoverDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <label>Notiz (optional)</label>
+  <textarea pTextarea rows="3" [(ngModel)]="handoverNote" class="w-full"></textarea>
+  <div class="dialog-actions">
+    <p-button label="Übergabe bestätigen" [loading]="actionRunning()" (click)="confirmHandover()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Stornieren -->
+<p-dialog header="Stornierung" [(visible)]="cancelDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <label>Stornogrund *</label>
+  <textarea pTextarea rows="3" [(ngModel)]="cancelReason" class="w-full"></textarea>
+  <div class="dialog-actions">
+    <p-button severity="danger" label="Stornieren" [disabled]="!cancelReason().trim()" [loading]="actionRunning()" (click)="confirmCancel()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Farbe ändern (Migration 00197) -->
+<p-dialog header="Farbe ändern" [(visible)]="colorDialogVisible" [modal]="true" [style]="{ width: '520px' }" [breakpoints]="{ '600px': '95vw' }">
+  @if (colorTargetItem(); as item) {
+    <p class="dialog-hint">{{ item.description }} × {{ item.qty }}</p>
+  }
+  @if (colorLoading()) {
+    <p-skeleton height="6rem" />
+  } @else if (colorOptions(); as options) {
+    @for (part of options.parts; track part.key) {
+      <div class="form-field">
+        <label>{{ part.label }}</label>
+        <div class="color-row">
+          <p-select
+            [options]="options.colors"
+            optionLabel="name"
+            optionValue="id"
+            [filter]="true"
+            filterBy="name"
+            placeholder="Farbe"
+            [ngModel]="colorSelection()[part.key ?? '']?.colorId"
+            (ngModelChange)="setColorSelection(part.key, 'colorId', $event)"
+            class="w-full"
+          />
+          <p-select
+            [options]="options.finishes"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Finish"
+            [ngModel]="colorSelection()[part.key ?? '']?.finishId"
+            (ngModelChange)="setColorSelection(part.key, 'finishId', $event)"
+            class="w-full"
+          />
+        </div>
+      </div>
+    }
+    <div class="form-field">
+      <label for="colorReason">Grund *</label>
+      <textarea
+        id="colorReason"
+        pTextarea
+        rows="2"
+        class="w-full"
+        placeholder="z. B. Kunde möchte doch Braun statt Grün"
+        [ngModel]="colorReason()"
+        (ngModelChange)="colorReason.set($event)"
+      ></textarea>
+    </div>
+    <p class="dialog-hint">
+      Nur bis zum Produktionsstart möglich. Eine Reservierung aus dem Lager wird freigegeben; für die neue Farbe wird
+      automatisch Lagerware reserviert oder die Position neu eingeplant. Der Preis bleibt gleich.
+    </p>
+  }
+  @if (colorError()) {
+    <p-message severity="error" styleClass="mb-2">{{ colorError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button
+      label="Farbe ändern"
+      icon="pi pi-check"
+      [disabled]="!colorSelectionComplete() || !colorReason().trim()"
+      [loading]="actionRunning()"
+      (click)="confirmColorChange()"
+    ></p-button>
+  </div>
+</p-dialog>

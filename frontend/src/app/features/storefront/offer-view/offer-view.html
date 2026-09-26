@@ -1,0 +1,61 @@
+@if (loading()) {
+  <p-skeleton height="6rem" borderRadius="12px" />
+} @else if (error() && !offer()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (offer()) {
+  <div class="offer-wrap">
+    <div class="page-head">
+      <h1>{{ showPrices() ? 'Dein individuelles Angebot' : 'Dein persönlicher Vorschlag' }}</h1>
+      <p class="validity">
+        <i class="pi pi-calendar"></i>
+        Gültig vom {{ offer()!.valid_from | date: 'dd.MM.yyyy' }} bis
+        {{ offer()!.valid_until | date: 'dd.MM.yyyy' }}
+      </p>
+    </div>
+
+    @if (isExpired()) {
+      <p-message severity="warn" styleClass="mb-3">{{ showPrices() ? 'Dieses Angebot ist abgelaufen.' : 'Dieser Vorschlag ist abgelaufen.' }}</p-message>
+    }
+
+    <div class="app-card">
+      <h2>Positionen</h2>
+      <div class="items-list">
+        @for (item of offer()!.items; track item.desired_variant_description) {
+          <div class="item-row">
+            <span class="item-name">
+              {{ item.desired_variant_description }}
+              <span class="item-qty">× {{ item.qty }}</span>
+            </span>
+            @if (showPrices()) {
+              <span class="item-price">{{ item.final_price | currency: 'EUR' }}</span>
+            }
+          </div>
+        }
+      </div>
+
+      @if (showPrices()) {
+        <div class="total-row">
+          <span>Gesamtsumme</span>
+          <span>{{ total() | currency: 'EUR' }}</span>
+        </div>
+      }
+
+      @if (error()) {
+        <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+      }
+
+      @if (!isExpired()) {
+        <div class="actions-row">
+          <p-button [label]="showPrices() ? 'Angebot annehmen' : 'Passt so – bitte drucken'" icon="pi pi-check" size="large" styleClass="w-full" [loading]="accepting()" (click)="accept()"></p-button>
+        </div>
+        <p class="hint">
+          @if (showPrices()) {
+            Um das Angebot abzulehnen oder Änderungen zu besprechen, wende dich bitte direkt an uns.
+          } @else {
+            Möchtest du etwas ändern oder doch nicht? Melde dich einfach direkt bei uns.
+          }
+        </p>
+      }
+    </div>
+  </div>
+}

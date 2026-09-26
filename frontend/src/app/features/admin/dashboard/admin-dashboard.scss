@@ -1,0 +1,58 @@
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.tile {
+  background: var(--app-surface);
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: var(--app-radius);
+  box-shadow: var(--app-shadow-sm);
+  padding: 1.25rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+
+  &:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  }
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: var(--p-text-muted-color, #6c757d);
+  }
+}
+
+.tile-number {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tile-sub {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.tile-empty {
+  color: var(--p-text-muted-color, #6c757d);
+  margin: 0;
+}
+
+.tile-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.tile-star {
+  color: #f5b301;
+  font-size: 1.1rem;
+}
+
+.tile-warn {
+  color: var(--p-orange-500, #f97316);
+}

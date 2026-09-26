@@ -1,0 +1,62 @@
+<div class="page-head">
+  <h1>Likes</h1>
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+  <div class="retry-row">
+    <p-button label="Erneut versuchen" (click)="load()"></p-button>
+  </div>
+} @else if (loading()) {
+  <div class="product-grid">
+    @for (i of [1, 2, 3, 4]; track i) {
+      <div class="product-card skeleton-card">
+        <p-skeleton height="100%" styleClass="skeleton-image" />
+        <div class="product-info">
+          <p-skeleton width="70%" />
+          <p-skeleton width="40%" styleClass="mt-2" />
+        </div>
+      </div>
+    }
+  </div>
+} @else if (products().length === 0) {
+  <div class="empty-state">
+    <i class="pi pi-heart"></i>
+    <p>Noch keine Likes.</p>
+  </div>
+} @else {
+  <div class="product-grid">
+    @for (product of products(); track product.product_id) {
+      <a class="product-card" (click)="openProduct(product)" tabindex="0" (keyup.enter)="openProduct(product)">
+        <div class="product-image">
+          @if (coverImage(product)) {
+            <img [src]="coverImage(product)" [alt]="product.name" loading="lazy" />
+          } @else {
+            <div class="no-image"><i class="pi pi-image"></i></div>
+          }
+        </div>
+        <div class="product-info">
+          <div class="product-info-row">
+            <h3>{{ product.name }}</h3>
+            <button type="button" class="like-btn liked" aria-label="Like entfernen" (click)="unlike(product, $event)">
+              <i class="pi pi-heart-fill"></i>
+              <span>{{ product.likesCount }}</span>
+            </button>
+          </div>
+          @if (showPrices()) {
+            @if (product.minPrice !== null) {
+              <p class="price">
+                @if (product.hasMultiplePrices) {
+                  <span class="price-prefix">ab</span>
+                }
+                {{ product.minPrice | currency: 'EUR' }}
+              </p>
+            } @else {
+              <p class="price price-unavailable">Preis auf Anfrage</p>
+            }
+          }
+        </div>
+      </a>
+    }
+  </div>
+}

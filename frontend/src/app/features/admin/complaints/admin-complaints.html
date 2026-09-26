@@ -1,0 +1,118 @@
+<div class="header-row">
+  <h1>Reklamationen</h1>
+  <p-button label="Neue Reklamation" icon="pi pi-plus" (click)="openReportDialog()"></p-button>
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-table [value]="complaints()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+    <ng-template #header>
+      <tr>
+        <th>Position</th>
+        <th>Grund</th>
+        <th>Gemeldet</th>
+        <th>Status</th>
+        <th>Aktion</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-complaint>
+      <tr>
+        <td>{{ complaint.description }}</td>
+        <td>{{ complaint.reason }}</td>
+        <td>{{ complaint.reportedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+        <td>
+          @if (complaint.resolvedAt) {
+            <p-tag [value]="complaint.decision ?? 'gelöst'" severity="success" />
+          } @else {
+            <p-tag value="offen" severity="warn" />
+          }
+        </td>
+        <td>
+          @if (!complaint.resolvedAt) {
+            <p-button size="small" label="Lösen" (click)="openResolveDialog(complaint)"></p-button>
+          } @else if (complaint.decisionNote) {
+            <span class="resolved-note">{{ complaint.decisionNote }}</span>
+          }
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="5">Keine Reklamationen.</td></tr>
+    </ng-template>
+  </p-table>
+}
+
+<!-- Neue Reklamation -->
+<p-dialog header="Neue Reklamation" [(visible)]="reportDialogVisible" [modal]="true" [style]="{ width: '480px' }">
+  <div class="form-field">
+    <label>Bestellposition * (nur übergebene Bestellungen)</label>
+    <p-select
+      [options]="handedOverItems()"
+      [ngModel]="selectedOrderItemId()"
+      (ngModelChange)="selectedOrderItemId.set($event)"
+      optionValue="orderItemId"
+      placeholder="Position wählen"
+      class="w-full"
+    >
+      <ng-template let-item #item>{{ item.orderNumber }} — {{ item.description }}</ng-template>
+    </p-select>
+  </div>
+  <div class="form-field">
+    <label>Grund *</label>
+    <textarea pTextarea rows="3" [(ngModel)]="reportReason" class="w-full"></textarea>
+  </div>
+  @if (actionError()) {
+    <p-message severity="error">{{ actionError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button label="Anlegen" [disabled]="!selectedOrderItemId() || !reportReason().trim()" [loading]="actionRunning()" (click)="confirmReport()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Reklamation lösen -->
+<p-dialog header="Reklamation lösen" [(visible)]="resolveDialogVisible" [modal]="true" [style]="{ width: '480px' }">
+  <div class="form-field">
+    <label>Entscheidung *</label>
+    <p-select [options]="decisionOptions" [(ngModel)]="resolveDecision" optionLabel="label" optionValue="value" class="w-full" />
+  </div>
+
+  @if (resolveDecision() === 'ersatzproduktion') {
+    <div class="form-field">
+      <label>Ersatzproduktion (Batch-Item) *</label>
+      <p-select
+        [options]="batchItems()"
+        [ngModel]="resolveReplacementBatchItemId()"
+        (ngModelChange)="resolveReplacementBatchItemId.set($event)"
+        optionLabel="description"
+        optionValue="id"
+        placeholder="Batch-Item wählen"
+        class="w-full"
+      />
+    </div>
+  }
+
+  <div class="form-field">
+    <label>Notiz *</label>
+    <textarea pTextarea rows="3" [(ngModel)]="resolveNote" class="w-full"></textarea>
+  </div>
+  <div class="form-field">
+    <label>Kosten (optional)</label>
+    <p-inputnumber [ngModel]="resolveCost()" (ngModelChange)="resolveCost.set($event)" mode="currency" currency="EUR" />
+  </div>
+
+  @if (actionError()) {
+    <p-message severity="error">{{ actionError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button
+      label="Lösen"
+      [disabled]="!resolveNote().trim() || (resolveDecision() === 'ersatzproduktion' && !resolveReplacementBatchItemId())"
+      [loading]="actionRunning()"
+      (click)="confirmResolve()"
+    ></p-button>
+  </div>
+</p-dialog>

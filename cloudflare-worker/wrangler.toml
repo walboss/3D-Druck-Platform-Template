@@ -1,0 +1,25 @@
+name = "3d-druck-platform-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-17"
+
+[vars]
+SUPABASE_URL = "https://DEINE-PROJECT-ID.supabase.co"
+
+# Workers AI fuer die Uebersetzung der MakerWorld-Titel/-Tags (Spec 27 §2,
+# Modell @cf/meta/llama-3.3-70b-instruct-fp8-fast, Free-Tier).
+[ai]
+binding = "AI"
+
+# TURNSTILE_SECRET_KEY und SUPABASE_ANON_KEY werden NICHT hier eingetragen,
+# sondern als Secrets gesetzt (siehe README.md).
+
+# Rate-Limit fuer POST /api/kundensuche (OFFENE-SECURITY-FIXES.md §5):
+# max. 10 Suchen pro IP und Minute. namespace_id ist eine frei gewaehlte,
+# pro Cloudflare-Account eindeutige Zahl.
+[[ratelimits]]
+name = "KUNDENSUCHE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

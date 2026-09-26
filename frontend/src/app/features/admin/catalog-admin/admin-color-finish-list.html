@@ -1,0 +1,109 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück zur Katalogpflege" (click)="back()"></p-button>
+
+<h1>Farben &amp; Finishes</h1>
+<p class="hint">Stammdaten werden nicht gelöscht, sondern deaktiviert. Inaktive Einträge sind im Shop und im Produkt-Editor nicht mehr wählbar.</p>
+
+@if (error()) {
+  <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+}
+
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <div class="master-grid">
+    <section>
+      <div class="section-header">
+        <h2>Farben</h2>
+        <p-button size="small" label="Neue Farbe" icon="pi pi-plus" (click)="openCreateDialog('color')"></p-button>
+      </div>
+      <p-table [value]="colors()" responsiveLayout="scroll">
+        <ng-template #header>
+          <tr>
+            <th>Name</th>
+            <th>Hex</th>
+            <th>Aktiv</th>
+            <th></th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-color>
+          <tr>
+            <td>{{ color.name }}</td>
+            <td>
+              @if (color.hex) {
+                <span class="swatch" [style.background]="color.hex"></span> {{ color.hex }}
+              } @else {
+                –
+              }
+            </td>
+            <td>
+              <p-toggleswitch [ngModel]="color.active" (ngModelChange)="toggleColorActive(color, $event)" />
+            </td>
+            <td>
+              <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" ariaLabel="Farbe bearbeiten" (click)="openEditColorDialog(color)"></p-button>
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="4">Keine Farben vorhanden.</td></tr>
+        </ng-template>
+      </p-table>
+    </section>
+
+    <section>
+      <div class="section-header">
+        <h2>Finishes</h2>
+        <p-button size="small" label="Neues Finish" icon="pi pi-plus" (click)="openCreateDialog('finish')"></p-button>
+      </div>
+      <p-table [value]="finishes()" responsiveLayout="scroll">
+        <ng-template #header>
+          <tr>
+            <th>Name</th>
+            <th>Aktiv</th>
+          </tr>
+        </ng-template>
+        <ng-template #body let-finish>
+          <tr>
+            <td>{{ finish.name }}</td>
+            <td>
+              <p-toggleswitch [ngModel]="finish.active" (ngModelChange)="toggleFinishActive(finish, $event)" />
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="2">Keine Finishes vorhanden.</td></tr>
+        </ng-template>
+      </p-table>
+    </section>
+  </div>
+}
+
+<p-dialog
+  [header]="editingColorId() ? 'Farbe bearbeiten' : (createKind() === 'color' ? 'Neue Farbe anlegen' : 'Neues Finish anlegen')"
+  [(visible)]="createDialogVisible"
+  [modal]="true"
+  [style]="{ width: '420px' }"
+>
+  <div class="form-field">
+    <label>Name *</label>
+    <input type="text" pInputText [ngModel]="newName()" (ngModelChange)="newName.set($event)" class="w-full" />
+  </div>
+  @if (createKind() === 'color') {
+    <div class="form-field">
+      <label>Hex (optional, z. B. #FF0000)</label>
+      <div class="hex-row">
+        <p-colorpicker [ngModel]="colorPickerValue()" (ngModelChange)="onColorPickerChange($event)" />
+        <input type="text" pInputText [ngModel]="newHex()" (ngModelChange)="newHex.set($event)" placeholder="#RRGGBB" class="w-full" />
+      </div>
+      @if (newHex().trim() && !canCreate() && newName().trim()) {
+        <small class="field-error">Ungültiger Hex-Wert (6 Hex-Zeichen, optional mit #).</small>
+      }
+    </div>
+  }
+  @if (createError()) {
+    <p-message severity="error">{{ createError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button [label]="editingColorId() ? 'Speichern' : 'Anlegen'" [disabled]="!canCreate()" [loading]="creating()" (click)="confirmCreate()"></p-button>
+  </div>
+</p-dialog>

@@ -1,0 +1,179 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück zur Katalogpflege" (click)="back()"></p-button>
+<h1 class="mt-2">MakerWorld-Import</h1>
+<p class="hint">
+  Ein MakerWorld-Link je Zeile (Weg A) oder CSV-Upload mit Spalten <code>link,category,name,tags</code> (Weg B).
+  „Vorschau laden" liest Titel (übersetzt), Bilder, Tags, Gewicht und Druckzeit je Link.
+  Ohne Kategorie (weder global noch je CSV-Zeile) werden Produkte wie bisher <strong>inaktiv</strong> angelegt;
+  mit Kategorie (Massenimport) werden sie <strong>sofort aktiv</strong> im Katalog angezeigt. Kalkulation/Preis
+  kommt in jedem Fall danach im Produkt-Editor.
+</p>
+
+@if (suggestionId()) {
+  <p-message severity="info" styleClass="mb-2">Import aus einem Kundenvorschlag — der Vorschlag wird nach dem Anlegen als „importiert" markiert.</p-message>
+}
+
+<div class="form-field">
+  <label>Kategorie (gilt für alle Links ohne eigene CSV-Kategorie)</label>
+  <input type="text" pInputText [ngModel]="globalCategory()" (ngModelChange)="globalCategory.set($event)" placeholder="z. B. Winter" class="w-full" [disabled]="importing()" />
+</div>
+
+<div class="form-field links-field">
+  <label>Weg A — MakerWorld-Links</label>
+  <textarea pTextarea rows="6" [ngModel]="linksText()" (ngModelChange)="linksText.set($event)" placeholder="https://makerworld.com/en/models/1725279&#10;https://makerworld.com/en/models/…" class="w-full"></textarea>
+  <div class="actions-row">
+    <p-button label="Vorschau laden" icon="pi pi-search" [loading]="loadingPreview()" [disabled]="!linksText().trim() || importing()" (click)="loadPreview()"></p-button>
+    <label class="file-upload-btn" [class.disabled]="importing() || loadingPreview()">
+      <i class="pi pi-upload"></i> .txt hochladen
+      <input type="file" accept=".txt,text/plain" (change)="onTxtFileSelected($event)" [disabled]="importing() || loadingPreview()" hidden />
+    </label>
+  </div>
+</div>
+
+<div class="form-field">
+  <label>Weg B — CSV-Upload (link,category,name,tags)</label>
+  <label class="file-upload-btn" [class.disabled]="importing() || loadingPreview()">
+    <i class="pi pi-upload"></i> CSV hochladen
+    <input type="file" accept=".csv,text/csv" (change)="onCsvFileSelected($event)" [disabled]="importing() || loadingPreview()" hidden />
+  </label>
+</div>
+
+@if (error()) {
+  <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+}
+@if (invalidLines().length > 0) {
+  <p-message severity="warn" styleClass="mb-2">
+    {{ invalidLines().length }} Zeile(n) ohne gültigen MakerWorld-Modell-Link übersprungen: {{ invalidLines().join(' · ') }}
+  </p-message>
+}
+@if (report(); as r) {
+  <p-message [severity]="r.failed > 0 ? 'warn' : 'success'" styleClass="mb-2">
+    {{ r.success }} erfolgreich importiert, {{ r.failed }} fehlgeschlagen.
+  </p-message>
+}
+@if (showPreviewProgress()) {
+  <p-progressbar [value]="previewProgress()" styleClass="mb-2" />
+}
+@if (showImportProgress()) {
+  <p-progressbar [value]="importProgress()" styleClass="mb-2" />
+}
+
+@if (hasPreview()) {
+  <div class="preview-head">
+    <div class="preview-select">
+      <p-button size="small" severity="secondary" [text]="true" label="Alle auswählen" (click)="selectAll(true)"></p-button>
+      <p-button size="small" severity="secondary" [text]="true" label="Keine" (click)="selectAll(false)"></p-button>
+    </div>
+    <p-button [label]="selectedProductCount() + (selectedProductCount() === 1 ? ' Produkt anlegen' : ' Produkte anlegen')" icon="pi pi-plus" [loading]="importing()" [disabled]="selectedCount() === 0 || loadingPreview()" (click)="importSelected()"></p-button>
+  </div>
+
+  <div class="import-list">
+    @for (row of rows(); track row.modelId) {
+      <div
+        class="import-row"
+        [class.row-done]="row.importState === 'angelegt'"
+        [class.row-skip]="row.state === 'vorhanden' || row.state === 'fehler'"
+        [class.row-large]="row.state === 'neu' && row.importState !== 'angelegt' && (isLongPrint(row) || isHeavyPrint(row))"
+      >
+        <div class="row-select">
+          @if (row.state === 'neu' && row.importState !== 'angelegt') {
+            <p-checkbox [binary]="true" [ngModel]="row.selected" (ngModelChange)="toggleSelected(row, $event)" />
+          }
+        </div>
+        <div class="row-cover">
+          @if (coverOf(row)) {
+            <img [src]="coverOf(row)" alt="" loading="lazy" />
+          } @else {
+            <div class="cover-placeholder"><i class="pi pi-image"></i></div>
+          }
+        </div>
+        <div class="row-main">
+          <div class="row-status">
+            @switch (row.state) {
+              @case ('wartet') { <p-tag severity="secondary" value="Wartet" /> }
+              @case ('lade') { <p-tag severity="info" value="Lädt …" /> }
+              @case ('neu') {
+                @switch (row.importState) {
+                  @case ('angelegt') { <p-tag severity="success" value="Angelegt" /> }
+                  @case ('lade') { <p-tag severity="info" value="Wird angelegt …" /> }
+                  @case ('fehler') { <p-tag severity="danger" value="Fehler beim Anlegen" /> }
+                  @default { <p-tag severity="success" value="Neu" /> }
+                }
+              }
+              @case ('vorhanden') { <p-tag severity="warn" value="Bereits im Katalog" /> }
+              @case ('fehler') { <p-tag severity="danger" value="Fehler" /> }
+            }
+            @if (row.source === 'csv') { <p-tag severity="secondary" [value]="'CSV'" /> }
+            @if (row.state === 'neu' && row.preview) {
+              @if (isLongPrint(row)) { <p-tag severity="warn" icon="pi pi-clock" value="Druckzeit ab 4 h" /> }
+              @if (isHeavyPrint(row)) { <p-tag severity="warn" icon="pi pi-box" value="Material ab 200 g" /> }
+              @if (row.preview.printProfile; as profile) {
+                @if (profile.targetPrinter) {
+                  @if (profile.isTargetPrinter) {
+                    <p-tag severity="success" icon="pi pi-check" [value]="profile.targetPrinter + '-Profil'" />
+                  } @else {
+                    <p-tag severity="warn" icon="pi pi-exclamation-triangle" [value]="'Kein ' + profile.targetPrinter + '-Profil – Werte von ' + (profile.printer ?? profile.title ?? 'anderem Drucker')" />
+                  }
+                }
+              }
+            }
+            <a class="row-link" [href]="row.url" target="_blank" rel="noopener">Modell {{ row.modelId }} <i class="pi pi-external-link"></i></a>
+          </div>
+
+          @if (row.state === 'fehler') {
+            <p class="row-error">{{ row.error }}</p>
+          }
+          @if (row.state === 'vorhanden' && row.existingProductId) {
+            <p class="row-hint">Produkt existiert: <a [routerLink]="['/admin/katalog', row.existingProductId]">im Editor öffnen</a></p>
+          }
+          @if (row.importState === 'fehler' && row.importError) {
+            <p class="row-error">{{ row.importError }}</p>
+          }
+          @if (row.importState === 'angelegt' && row.productId) {
+            <p class="row-hint">
+              {{ row.createdCount > 1 ? row.createdCount + ' Produkte angelegt' : 'Produkt angelegt' }} ({{ row.massenimport ? 'aktiv' : 'inaktiv' }}):
+              <a [routerLink]="['/admin/katalog', row.productId]">{{ row.createdCount > 1 ? 'erstes im Editor öffnen' : 'im Editor öffnen' }}</a>
+            </p>
+          }
+
+          @if (row.state === 'neu' && row.preview) {
+            <div class="row-fields">
+              <div class="form-field">
+                <label>Name *</label>
+                <input type="text" pInputText [ngModel]="row.name" (ngModelChange)="updateName(row, $event)" [disabled]="row.importState === 'angelegt' || importing()" class="w-full" />
+                @if (row.preview.title && row.preview.title !== row.name) {
+                  <small class="row-original">Original: {{ row.preview.title }}</small>
+                }
+              </div>
+              <div class="form-field">
+                <label>Tags (kommagetrennt)</label>
+                <input type="text" pInputText [ngModel]="row.tagsText" (ngModelChange)="updateTags(row, $event)" [disabled]="row.importState === 'angelegt' || importing()" class="w-full" />
+                @if (row.preview.tags.length > 0) {
+                  <small class="row-original">Original: {{ row.preview.tags.join(', ') }}</small>
+                }
+              </div>
+            </div>
+            <div class="row-meta">
+              <span>{{ row.preview.images.length }} Bild(er)</span>
+              <span [class.meta-warn]="isHeavyPrint(row)">{{ row.preview.estimatedWeightG ?? '–' }} g</span>
+              <span [class.meta-warn]="isLongPrint(row)">{{ formatMinutes(row.preview.estimatedPrintMinutes) }}</span>
+              <span>Kategorie: {{ categoryOf(row) ?? '–' }}</span>
+              <span>{{ row.massenimport ? 'wird aktiv angelegt' : 'wird inaktiv angelegt' }}</span>
+              @if (planSummary(row); as summary) {
+                <strong>{{ summary }}</strong>
+              }
+            </div>
+            @if (row.mapping) {
+              <app-makerworld-plate-mapping
+                [plates]="row.plates"
+                [allowPerPlate]="true"
+                [state]="row.mapping"
+                (stateChange)="updateMapping(row, $event)"
+                [disabled]="row.importState === 'angelegt' || importing()"
+              />
+            }
+          }
+        </div>
+      </div>
+    }
+  </div>
+}

@@ -1,0 +1,100 @@
+<h1>Dashboard</h1>
+
+<div class="tile-grid">
+  <div class="tile" (click)="goToOrders()">
+    <h3>Offene Bestellungen</h3>
+    @if (openOrdersLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (openOrdersError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadOpenOrders(); $event.stopPropagation()"></p-button>
+    } @else if (openOrders() && openOrders()!.count === 0) {
+      <p class="tile-empty">Keine offenen Bestellungen.</p>
+    } @else if (openOrders()) {
+      <p class="tile-number">{{ openOrders()!.count }}</p>
+      @if (ordersWithComment().length > 0) {
+        <p class="tile-sub"><i class="pi pi-comment"></i> {{ ordersWithComment().length }} mit Kundenkommentar</p>
+      }
+    }
+  </div>
+
+  <div class="tile" (click)="goToInventory()">
+    <h3>Kritischer Filamentbestand</h3>
+    @if (lowStockLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (lowStockError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadLowStock(); $event.stopPropagation()"></p-button>
+    } @else if (lowStock().length === 0) {
+      <p class="tile-empty">Kein kritischer Bestand.</p>
+    } @else {
+      <p class="tile-number">{{ lowStock().length }}</p>
+      <p class="tile-sub">Spulen unter Schwellenwert</p>
+    }
+  </div>
+
+  <div class="tile" (click)="goToProduction()">
+    <h3>Laufende Produktion</h3>
+    @if (productionLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (productionError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadProduction(); $event.stopPropagation()"></p-button>
+    } @else if (production() && production()!.count === 0) {
+      <p class="tile-empty">Keine laufende Produktion.</p>
+    } @else if (production()) {
+      <p class="tile-number">{{ production()!.count }}</p>
+    }
+  </div>
+
+  <div class="tile" (click)="goTo('/admin/katalog/saisons')">
+    <h3>Saison heute</h3>
+    @if (seasonLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (seasonError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadSeason(); $event.stopPropagation()"></p-button>
+    } @else if (season(); as s) {
+      @if (s.categories.length === 0) {
+        <p class="tile-empty">Keine Saison aktiv.</p>
+      } @else {
+        <p class="tile-text">{{ s.categories[0] }}</p>
+        @if (s.categories.length > 1) {
+          <p class="tile-sub">auch: {{ s.categories.slice(1).join(', ') }}</p>
+        }
+      }
+      @if (!s.enabled) {
+        <p class="tile-sub tile-warn">Saison-Funktion in den Settings aus</p>
+      }
+    }
+  </div>
+
+  <div class="tile" (click)="goTo('/admin/katalog')">
+    <h3>Produkte ohne Kategorie</h3>
+    @if (noCategoryLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (noCategoryError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadNoCategory(); $event.stopPropagation()"></p-button>
+    } @else if (noCategoryCount() === 0) {
+      <p class="tile-empty">Alle aktiven Produkte haben eine Kategorie.</p>
+    } @else {
+      <p class="tile-number">{{ noCategoryCount() }}</p>
+      <p class="tile-sub">aktive Produkte</p>
+    }
+  </div>
+
+  <div class="tile" (click)="goTo('/admin/drucker')">
+    <h3>Standard-Drucker</h3>
+    @if (printerLoading()) {
+      <p-skeleton height="3rem" />
+    } @else if (printerError()) {
+      <p-message severity="error">Fehler beim Laden.</p-message>
+      <p-button severity="secondary" [text]="true" label="Erneut versuchen" (click)="loadDefaultPrinter(); $event.stopPropagation()"></p-button>
+    } @else if (defaultPrinter()) {
+      <p class="tile-text"><i class="pi pi-star-fill tile-star"></i> {{ defaultPrinter() }}</p>
+    } @else {
+      <p class="tile-empty tile-warn">Kein Standard-Drucker — Bestellungen werden nicht automatisch eingeplant.</p>
+    }
+  </div>
+</div>

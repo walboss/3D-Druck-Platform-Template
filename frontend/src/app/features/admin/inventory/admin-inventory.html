@@ -1,0 +1,333 @@
+<div class="header-row">
+  <h1>Lager / Filament</h1>
+  <div class="header-actions">
+    <p-button label="Filament anlegen" severity="secondary" icon="pi pi-plus" (click)="openFilamentDialog()"></p-button>
+    <p-button label="Spule anlegen" severity="secondary" icon="pi pi-plus" (click)="openSpoolDialog()"></p-button>
+    <p-button label="Wareneingang erfassen" icon="pi pi-plus" (click)="openInboundDialog()"></p-button>
+  </div>
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-tabs value="0">
+    <p-tablist>
+      <p-tab value="0">Bestand</p-tab>
+      <p-tab value="1">Bewegungshistorie</p-tab>
+      <p-tab value="2">B-Ware buchen</p-tab>
+      <p-tab value="3">Filamente</p-tab>
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="0">
+        <p-table [value]="spools()" [rows]="20" [paginator]="true" class="stack-on-mobile">
+          <ng-template #header>
+            <tr>
+              <th>Filament</th>
+              <th>Restbestand</th>
+              <th>Verfügbar</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-spool>
+            <tr [class.critical-row]="spool.isCritical">
+              <td data-label="Filament">{{ spool.label }}</td>
+              <td data-label="Restbestand">{{ spool.restG }} g</td>
+              <td data-label="Verfügbar">{{ spool.availableG }} g</td>
+              <td data-label="Status">
+                @if (spool.isCritical) {
+                  <p-tag value="kritisch" severity="danger" />
+                } @else {
+                  <p-tag value="ok" severity="success" />
+                }
+              </td>
+              <td data-label="" class="col-actions">
+                <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" ariaLabel="Spule bearbeiten" (click)="openEditSpoolDialog(spool.id)"></p-button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="5">Keine Spulen vorhanden.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+
+      <p-tabpanel value="1">
+        <p-table [value]="movements()" [rows]="25" [paginator]="true" class="stack-on-mobile">
+          <ng-template #header>
+            <tr>
+              <th>Filament</th>
+              <th>Typ</th>
+              <th>Menge</th>
+              <th>Notiz</th>
+              <th>Wer</th>
+              <th>Wann</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-movement>
+            <tr>
+              <td data-label="Filament">{{ movement.spoolLabel }}</td>
+              <td data-label="Typ">{{ movement.movementType }}</td>
+              <td data-label="Menge">{{ movement.amountG > 0 ? '+' : '' }}{{ movement.amountG }} g</td>
+              <td data-label="Notiz">{{ movement.note ?? '–' }}</td>
+              <td data-label="Wer">{{ movement.createdBy }}</td>
+              <td data-label="Wann">{{ movement.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="6">Keine Bewegungen.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+
+      <p-tabpanel value="2">
+        <p class="hint">
+          Ausschuss aus abgeschlossenen Produktionsaufträgen, der noch nicht als B-Ware umgebucht
+          wurde.
+        </p>
+        <div class="bware-list">
+          @for (item of bWareItems(); track item.batchItemId) {
+            <div class="bware-row">
+              <span>{{ item.description }} — {{ item.bookableQty }} von {{ item.qtyScrapNormal }} verfügbar</span>
+              <p-button size="small" label="B-Ware buchen" (click)="openBWareDialog(item)"></p-button>
+            </div>
+          }
+          @if (bWareItems().length === 0) {
+            <p class="tile-empty">Kein buchbarer Ausschuss vorhanden.</p>
+          }
+        </div>
+      </p-tabpanel>
+
+      <p-tabpanel value="3">
+        <p-table [value]="filamentProductsList()" [rows]="20" [paginator]="true" class="stack-on-mobile">
+          <ng-template #header>
+            <tr>
+              <th>Hersteller</th>
+              <th>Produktname</th>
+              <th>Material</th>
+              <th>Farbe</th>
+              <th>Finish</th>
+              <th>Durchmesser</th>
+              <th></th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-product>
+            <tr>
+              <td data-label="Hersteller">{{ product.manufacturer }}</td>
+              <td data-label="Produktname">{{ product.productName }}</td>
+              <td data-label="Material">{{ product.material }}</td>
+              <td data-label="Farbe">{{ product.colorName }}</td>
+              <td data-label="Finish">{{ product.finishName }}</td>
+              <td data-label="Durchmesser">{{ product.diameterMm }} mm</td>
+              <td data-label="" class="col-actions">
+                <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" ariaLabel="Filament bearbeiten" (click)="openEditFilamentDialog(product)"></p-button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="7">Keine Filamente vorhanden.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+}
+
+<!-- Wareneingang -->
+<p-dialog header="Wareneingang erfassen" [(visible)]="inboundDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <div class="form-field">
+    <label>Spule *</label>
+    <p-select
+      [options]="spools()"
+      [ngModel]="inboundSpoolId()"
+      (ngModelChange)="inboundSpoolId.set($event)"
+      optionLabel="label"
+      optionValue="id"
+      placeholder="Spule wählen"
+      class="w-full"
+    />
+  </div>
+  <div class="form-field">
+    <label>Menge (g) *</label>
+    <p-inputnumber [ngModel]="inboundAmount()" (ngModelChange)="inboundAmount.set($event)" [min]="1" suffix=" g" />
+  </div>
+  <div class="form-field">
+    <label>Notiz</label>
+    <textarea pTextarea rows="2" [ngModel]="inboundNote()" (ngModelChange)="inboundNote.set($event)" class="w-full"></textarea>
+  </div>
+  @if (actionError()) {
+    <p-message severity="error">{{ actionError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button label="Erfassen" [disabled]="!inboundSpoolId() || inboundAmount() <= 0" [loading]="actionRunning()" (click)="confirmInbound()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- B-Ware buchen -->
+<p-dialog header="B-Ware buchen" [(visible)]="bWareDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <div class="form-field">
+    <label>Menge *</label>
+    <p-inputnumber [ngModel]="bWareQty()" (ngModelChange)="bWareQty.set($event)" [min]="1" [max]="bWareTarget()?.bookableQty ?? 1" />
+  </div>
+  <div class="form-field">
+    <label>Notiz *</label>
+    <textarea pTextarea rows="2" [ngModel]="bWareNote()" (ngModelChange)="bWareNote.set($event)" class="w-full"></textarea>
+  </div>
+  @if (actionError()) {
+    <p-message severity="error">{{ actionError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button label="Buchen" [disabled]="bWareQty() <= 0 || !bWareNote().trim()" [loading]="actionRunning()" (click)="confirmBWare()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Filament anlegen / bearbeiten -->
+<p-dialog [header]="editingFilamentId() ? 'Filament bearbeiten' : 'Filament anlegen'" [(visible)]="filamentDialogVisible" [modal]="true" [style]="{ width: '480px' }">
+  <div class="form-field">
+    <label>Hersteller *</label>
+    <p-autocomplete
+      [ngModel]="filamentManufacturer()"
+      (ngModelChange)="filamentManufacturer.set($event)"
+      [suggestions]="manufacturerSuggestions()"
+      (completeMethod)="searchManufacturers($event)"
+      [dropdown]="true"
+      [minQueryLength]="0"
+      [completeOnFocus]="true"
+      inputStyleClass="w-full"
+      styleClass="w-full"
+      placeholder="Auswählen oder eintippen"
+    />
+  </div>
+  <div class="form-field">
+    <label>Produktname *</label>
+    <p-autocomplete
+      [ngModel]="filamentProductName()"
+      (ngModelChange)="filamentProductName.set($event)"
+      [suggestions]="productNameSuggestions()"
+      (completeMethod)="searchProductNames($event)"
+      [dropdown]="true"
+      [minQueryLength]="0"
+      [completeOnFocus]="true"
+      inputStyleClass="w-full"
+      styleClass="w-full"
+      placeholder="Auswählen oder eintippen"
+    />
+  </div>
+  <div class="form-field">
+    <label>Material *</label>
+    <input
+      type="text"
+      pInputText
+      [ngModel]="filamentMaterial()"
+      (ngModelChange)="filamentMaterial.set($event)"
+      placeholder="z. B. PLA, PETG, ABS"
+      class="w-full"
+    />
+  </div>
+  <div class="form-field">
+    <label>Farbe *</label>
+    <p-select
+      [options]="colors()"
+      [ngModel]="filamentColorId()"
+      (ngModelChange)="filamentColorId.set($event)"
+      optionLabel="name"
+      optionValue="id"
+      placeholder="Farbe wählen"
+      class="w-full"
+    >
+      <ng-template let-color #item>
+        @if (color.hex) {
+          <span class="swatch" [style.background]="color.hex"></span>
+        }
+        {{ color.name }}
+      </ng-template>
+      <ng-template let-color #selectedItem>
+        @if (color.hex) {
+          <span class="swatch" [style.background]="color.hex"></span>
+        }
+        {{ color.name }}
+      </ng-template>
+    </p-select>
+  </div>
+  <div class="form-field">
+    <label>Finish *</label>
+    <p-select
+      [options]="finishes()"
+      [ngModel]="filamentFinishId()"
+      (ngModelChange)="filamentFinishId.set($event)"
+      optionLabel="name"
+      optionValue="id"
+      placeholder="Finish wählen"
+      class="w-full"
+    />
+  </div>
+  <div class="form-field">
+    <label>Durchmesser (mm) *</label>
+    <p-inputnumber [ngModel]="filamentDiameterMm()" (ngModelChange)="filamentDiameterMm.set($event)" [minFractionDigits]="2" [maxFractionDigits]="2" [min]="0" suffix=" mm" />
+  </div>
+  @if (filamentError()) {
+    <p-message severity="error">{{ filamentError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button [label]="editingFilamentId() ? 'Speichern' : 'Anlegen'" [disabled]="!canCreateFilament()" [loading]="filamentCreating()" (click)="confirmCreateFilament()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Spule anlegen / bearbeiten -->
+<p-dialog [header]="editingSpoolId() ? 'Spule bearbeiten' : 'Spule anlegen'" [(visible)]="spoolDialogVisible" [modal]="true" [style]="{ width: '480px' }">
+  <div class="form-field">
+    <label>Filament *</label>
+    <p-select
+      [options]="filamentProducts()"
+      [ngModel]="spoolFilamentProductId()"
+      (ngModelChange)="spoolFilamentProductId.set($event)"
+      optionLabel="label"
+      optionValue="id"
+      placeholder="Filament wählen"
+      class="w-full"
+    />
+    <p-button
+      label="+ Neues Filament anlegen"
+      [text]="true"
+      size="small"
+      styleClass="mt-sm"
+      (click)="openFilamentDialogFromSpool()"
+    ></p-button>
+  </div>
+  <div class="form-field">
+    <label>Kaufpreis *</label>
+    <p-inputnumber [ngModel]="spoolPurchasePrice()" (ngModelChange)="spoolPurchasePrice.set($event)" mode="currency" currency="EUR" locale="de-DE" [min]="0" />
+  </div>
+  <div class="form-field">
+    <label>Bruttogewicht (g) *</label>
+    <p-inputnumber [ngModel]="spoolGrossWeightG()" (ngModelChange)="spoolGrossWeightG.set($event)" [min]="0" suffix=" g" />
+    <small class="hint">Spule + Filament zusammen gewogen, nicht Herstellerangabe.</small>
+  </div>
+  <div class="form-field">
+    <label>Taragewicht (g) *</label>
+    <p-inputnumber [ngModel]="spoolTareWeightG()" (ngModelChange)="spoolTareWeightG.set($event)" [min]="0" suffix=" g" />
+    <small class="hint">Gewicht der leeren Spule.</small>
+  </div>
+  @if (spoolGrossWeightG() !== null && spoolTareWeightG() !== null) {
+    <div class="form-field">
+      @if (spoolNetWeightG() !== null) {
+        <small class="hint">Anbruchgewicht (Brutto − Tara): <strong>{{ spoolNetWeightG() }} g</strong> — realer Nullpunkt für alle folgenden Bewegungen.</small>
+      } @else {
+        <small class="field-error">Bruttogewicht muss größer als Taragewicht sein.</small>
+      }
+    </div>
+  }
+  <div class="form-field">
+    <label>Kaufdatum *</label>
+    <p-datepicker [ngModel]="spoolPurchaseDate()" (ngModelChange)="spoolPurchaseDate.set($event)" dateFormat="dd.mm.yy" class="w-full" />
+  </div>
+  @if (spoolError()) {
+    <p-message severity="error">{{ spoolError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button [label]="editingSpoolId() ? 'Speichern' : 'Anlegen'" [disabled]="!canCreateSpool()" [loading]="spoolCreating()" (click)="confirmCreateSpool()"></p-button>
+  </div>
+</p-dialog>

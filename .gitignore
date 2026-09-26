@@ -1,0 +1,13 @@
+﻿node_modules/
+
+supabase/.temp/
+cloudflare-worker/.wrangler/
+frontend/.wrangler/
+
+.env
+.env.local
+.env*.local
+
+.vscode/
+.DS_Store
+Thumbs.db

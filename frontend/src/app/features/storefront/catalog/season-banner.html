@@ -1,0 +1,15 @@
+<button type="button" class="season-banner" (click)="selected.emit(banner().key)">
+  <div class="season-banner-text">
+    <span class="season-banner-eyebrow"><i class="pi pi-calendar"></i> Gerade aktuell</span>
+    <h2>{{ banner().title }}</h2>
+    <p>{{ banner().text }}</p>
+    <span class="season-banner-cta">Alle ansehen <i class="pi pi-arrow-right"></i></span>
+  </div>
+  @if (banner().images.length > 0) {
+    <div class="season-banner-images">
+      @for (img of banner().images; track img) {
+        <img [src]="img" alt="" loading="lazy" />
+      }
+    </div>
+  }
+</button>

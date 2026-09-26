@@ -1,0 +1,104 @@
+<h1>Settings</h1>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  @if (saved()) {
+    <p-message severity="success" styleClass="mb-3">Einstellungen gespeichert.</p-message>
+  }
+
+  <section class="settings-section">
+    <h2>Shop</h2>
+    <div class="mode-list" role="radiogroup" aria-label="Shop-Modus">
+      @for (mode of shopModes; track mode.id) {
+        <button
+          type="button"
+          class="mode-card"
+          role="radio"
+          [attr.aria-checked]="shopMode() === mode.id"
+          [class.selected]="shopMode() === mode.id"
+          (click)="selectShopMode(mode)"
+        >
+          <span class="mode-radio"></span>
+          <span class="mode-text">
+            <span class="mode-label">{{ mode.label }}</span>
+            <span class="mode-desc">{{ mode.description }}</span>
+          </span>
+        </button>
+      }
+    </div>
+    @if (shopMode() === null) {
+      <p class="hint">Eigene Einstellung — die Schalter unter „Erweitert" passen zu keinem Modus.</p>
+    }
+
+    <button type="button" class="advanced-toggle" (click)="advancedOpen.set(!advancedOpen())" [attr.aria-expanded]="advancedOpen()">
+      <i [class]="advancedOpen() ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></i>
+      Erweitert: einzelne Schalter
+    </button>
+    @if (advancedOpen()) {
+      <div class="advanced">
+        <div class="form-field toggle-field">
+          <label>Wunschliste (Katalog-Auswahl + Kontaktformular) aktiv</label>
+          <p-toggleswitch [(ngModel)]="storefrontShopEnabled" />
+        </div>
+        <div class="form-field toggle-field">
+          <label>Preise im Storefront anzeigen</label>
+          <p-toggleswitch [(ngModel)]="storefrontPricesVisible" />
+        </div>
+        <div class="form-field toggle-field">
+          <label>Individualanfrage (freies Formular) aktiv</label>
+          <p-toggleswitch [(ngModel)]="storefrontCustomRequestEnabled" />
+        </div>
+      </div>
+    }
+  </section>
+
+  <section class="settings-section">
+    <h2>Katalog</h2>
+    <div class="form-field toggle-field">
+      <label>Saison-Kategorien im Katalog (Banner + Saison zuerst)</label>
+      <p-toggleswitch [(ngModel)]="storefrontSeasonsEnabled" />
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <h2>E-Mail</h2>
+    <div class="form-field toggle-field">
+      <label>E-Mail-System aktiv</label>
+      <p-toggleswitch [(ngModel)]="emailSystemEnabled" />
+    </div>
+    <div class="form-field toggle-field">
+      <label>E-Mail bei Bestellung Pflichtfeld</label>
+      <p-toggleswitch [(ngModel)]="emailRequiredAtOrder" />
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <h2>Kalkulation &amp; Bestellung</h2>
+    <div class="form-field">
+      <label>Strompreis pro kWh</label>
+      <p-inputnumber [(ngModel)]="electricityPricePerKwh" mode="currency" currency="EUR" [maxFractionDigits]="4" />
+    </div>
+    <div class="form-field">
+      <label>Standard-Stundensatz</label>
+      <p-inputnumber [(ngModel)]="defaultLaborRatePerHour" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Mindestbestellwert (leer = deaktiviert)</label>
+      <p-inputnumber [ngModel]="minOrderValue()" (ngModelChange)="minOrderValue.set($event)" mode="currency" currency="EUR" />
+    </div>
+  </section>
+
+  <section class="settings-section">
+    <h2>Datenschutz</h2>
+    <div class="form-field">
+      <label>Kundendaten-Aufbewahrungsfrist (Tage)</label>
+      <p-inputnumber [(ngModel)]="customerDataRetentionDays" [min]="1" suffix=" Tage" />
+    </div>
+  </section>
+
+  <p-button label="Speichern" icon="pi pi-save" [loading]="saving()" (click)="save()"></p-button>
+}

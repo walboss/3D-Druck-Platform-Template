@@ -1,0 +1,32 @@
+.legal-page {
+  max-width: 720px;
+  margin: 0 auto;
+  line-height: 1.6;
+
+  h2 {
+    margin-top: 1.75rem;
+    font-size: 1.15rem;
+  }
+
+  ul {
+    padding-left: 1.25rem;
+  }
+
+  address {
+    font-style: normal;
+  }
+}
+
+.draft-note {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--p-yellow-50, #fefce8);
+  color: var(--p-yellow-800, #854d0e);
+  border: 1px solid var(--p-yellow-200, #fef08a);
+  font-size: 0.9rem;
+}
+
+.updated {
+  color: var(--app-text-muted);
+  font-size: 0.875rem;
+}

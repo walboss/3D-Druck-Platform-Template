@@ -1,0 +1,142 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück zur Katalogpflege" (click)="back()"></p-button>
+
+<div class="page-header">
+  <h1>Saison-Kategorien</h1>
+  <p-button label="Neuer Zeitraum" icon="pi pi-plus" (click)="openCreateDialog()"></p-button>
+</div>
+<p class="hint">
+  Liegt das heutige Datum im Zeitraum, steht die Kategorie im Katalog-Filter zuerst und ihre Produkte oben.
+  Zeiträume wiederholen sich jedes Jahr und dürfen über den Jahreswechsel gehen (z. B. 01.12. – 06.01.).
+  Überschneiden sich zwei, gewinnt der kürzere (z. B. Halloween vor Herbst) — er bekommt auch das Banner oben im Katalog.
+</p>
+
+@if (seasonsDisabled()) {
+  <p-message severity="warn" styleClass="mb-2">
+    Die Saison-Funktion ist in den Settings ausgeschaltet — Zeiträume werden im Katalog gerade nicht angewendet.
+  </p-message>
+}
+
+@if (error()) {
+  <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+}
+
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-table [value]="seasons()" styleClass="stack-on-mobile">
+    <ng-template #header>
+      <tr>
+        <th>Kategorie</th>
+        <th>Zeitraum</th>
+        <th>Aktiv</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-season>
+      <tr [class.inactive]="!season.active">
+        <td data-label="Kategorie">
+          <strong>{{ season.category }}</strong>
+          @if (isCurrent(season)) {
+            <span class="current-badge">gerade aktuell</span>
+          }
+        </td>
+        <td data-label="Zeitraum">{{ formatRange(season) }}</td>
+        <td data-label="Aktiv">
+          <p-toggleswitch [ngModel]="season.active" (ngModelChange)="toggleActive(season, $event)" />
+        </td>
+        <td class="col-actions">
+          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" aria-label="Bearbeiten" (click)="openEditDialog(season)"></p-button>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="4">Noch keine Saison-Zeiträume angelegt.</td></tr>
+    </ng-template>
+  </p-table>
+
+  @if (seasons().length > 0) {
+    <section class="preview-box">
+      <h2>Vorschau</h2>
+      <div class="preview-row">
+        <label for="previewDate">Datum (TT.MM.)</label>
+        <input id="previewDate" type="text" inputmode="decimal" pInputText placeholder="z. B. 15.10." [ngModel]="previewDate()" (ngModelChange)="previewDate.set($event)" />
+      </div>
+      @if (previewInvalid()) {
+        <small class="field-error">Ungültiges Datum.</small>
+      } @else if (previewResult(); as result) {
+        @if (result.length === 0) {
+          <p class="preview-empty">An diesem Tag ist keine Saison aktiv — Katalog wie gewohnt, kein Banner.</p>
+        } @else {
+          <ol class="preview-list">
+            @for (s of result; track s.id; let first = $first) {
+              <li>
+                <strong>{{ s.category }}</strong> ({{ formatRange(s) }})
+                @if (first) {
+                  <span class="current-badge">Banner</span>
+                }
+              </li>
+            }
+          </ol>
+        }
+      }
+    </section>
+  }
+}
+
+<p-dialog
+  [header]="editingId() ? 'Zeitraum bearbeiten' : 'Neuen Zeitraum anlegen'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '420px' }"
+  [breakpoints]="{ '575px': '95vw' }"
+>
+  <div class="form-field">
+    <label>Kategorie *</label>
+    <p-autocomplete
+      [ngModel]="formCategory()"
+      (ngModelChange)="formCategory.set($event ?? '')"
+      [suggestions]="categorySuggestions()"
+      (completeMethod)="searchCategories($event)"
+      [dropdown]="true"
+      [minQueryLength]="0"
+      [completeOnFocus]="true"
+      appendTo="body"
+      inputStyleClass="w-full"
+      styleClass="w-full"
+      placeholder="Auswählen oder eintippen"
+    />
+    <small class="field-hint">Muss genau wie die Kategorie am Produkt heißen (Groß-/Kleinschreibung egal).</small>
+  </div>
+  <div class="date-row">
+    <div class="form-field">
+      <label for="seasonStart">Von (TT.MM.) *</label>
+      <input id="seasonStart" type="text" inputmode="decimal" pInputText placeholder="01.10." [ngModel]="formStart()" (ngModelChange)="formStart.set($event)" class="w-full" />
+      @if (startInvalid()) {
+        <small class="field-error">Ungültiges Datum.</small>
+      }
+    </div>
+    <div class="form-field">
+      <label for="seasonEnd">Bis (TT.MM.) *</label>
+      <input id="seasonEnd" type="text" inputmode="decimal" pInputText placeholder="31.10." [ngModel]="formEnd()" (ngModelChange)="formEnd.set($event)" class="w-full" />
+      @if (endInvalid()) {
+        <small class="field-error">Ungültiges Datum.</small>
+      }
+    </div>
+  </div>
+  <div class="form-field">
+    <label for="bannerTitle">Banner-Überschrift (optional)</label>
+    <input id="bannerTitle" type="text" pInputText [placeholder]="formCategory() || 'z. B. Halloween-Deko 🎃'" [ngModel]="formBannerTitle()" (ngModelChange)="formBannerTitle.set($event)" class="w-full" />
+  </div>
+  <div class="form-field">
+    <label for="bannerText">Banner-Text (optional)</label>
+    <input id="bannerText" type="text" pInputText placeholder="Jetzt passend zur Saison" [ngModel]="formBannerText()" (ngModelChange)="formBannerText.set($event)" class="w-full" />
+    <small class="field-hint">Leer = Kategoriename bzw. "Jetzt passend zur Saison".</small>
+  </div>
+  @if (dialogError()) {
+    <p-message severity="error">{{ dialogError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button [label]="editingId() ? 'Speichern' : 'Anlegen'" [disabled]="!canSave()" [loading]="saving()" (click)="save()"></p-button>
+  </div>
+</p-dialog>

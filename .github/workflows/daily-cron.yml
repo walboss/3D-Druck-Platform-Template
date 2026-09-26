@@ -1,0 +1,43 @@
+name: Daily Cron
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  daily-cron:
+    # Nicht im Vorlagen-Repo selbst ausführen (dort gibt es keine Secrets);
+    # in deiner Kopie läuft der Job normal.
+    if: github.repository != 'walboss/3D-Druck-Platform-Template'
+    runs-on: ubuntu-latest
+    steps:
+      - name: fn_expire_offers
+        env:
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s -f -X POST \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            "https://DEINE-PROJECT-ID.supabase.co/rest/v1/rpc/fn_expire_offers"
+
+      - name: fn_anonymize_customers
+        env:
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s -f -X POST \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            "https://DEINE-PROJECT-ID.supabase.co/rest/v1/rpc/fn_anonymize_customers"
+
+      - name: Cleanup expired cart sessions
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$SUPABASE_DB_URL" -c "
+            DELETE FROM cart_items WHERE cart_session_id IN (SELECT id FROM cart_sessions WHERE expires_at < now());
+            DELETE FROM cart_sessions WHERE expires_at < now();
+          "

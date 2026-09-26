@@ -1,0 +1,174 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück" (click)="back()"></p-button>
+
+@if (loading()) {
+  <p-skeleton height="6rem" styleClass="mt-2" />
+} @else if (error()) {
+  <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+} @else if (detail()) {
+  <div class="header-row">
+    <h1>Produktionsauftrag</h1>
+    <p-tag [value]="detail()!.status" [severity]="statusSeverity(detail()!.status)" />
+  </div>
+  <p class="meta">
+    Drucker: {{ detail()!.printerName ?? '–' }} · Geplant:
+    {{ detail()!.plannedStart | date: 'dd.MM.yyyy HH:mm' }}
+    @if (detail()!.actualStart) {
+      · Gestartet: {{ detail()!.actualStart | date: 'dd.MM.yyyy HH:mm' }}
+    }
+    @if (detail()!.actualEnd) {
+      · Beendet: {{ detail()!.actualEnd | date: 'dd.MM.yyyy HH:mm' }}
+    }
+  </p>
+
+  @if (actionError()) {
+    <p-message severity="error" styleClass="mb-2">{{ actionError() }}</p-message>
+  }
+
+  <div class="order-actions">
+    @if (detail()!.status === 'Geplant' && detail()!.unassignedItems.length > 0) {
+      <p-button label="Produktion starten" icon="pi pi-play" (click)="openStartDialog()"></p-button>
+    }
+    @if (detail()!.status === 'Laeuft') {
+      <p-button label="Auftrag abschließen" icon="pi pi-check" [loading]="actionRunning()" [disabled]="openBatchItemCount() > 0" (click)="completeProductionOrder()"></p-button>
+      <p-button severity="danger" label="Als fehlgeschlagen markieren" icon="pi pi-times" (click)="openFailDialog()"></p-button>
+    }
+  </div>
+
+  @if (detail()!.status === 'Laeuft' && openBatchItemCount() > 0) {
+    <p-message severity="info" styleClass="mt-2">
+      Abschließen erst möglich, wenn für alle Positionen der Ist-Verbrauch erfasst ist (noch offen: {{ openBatchItemCount() }}).
+    </p-message>
+  }
+
+  @if (detail()!.unassignedItems.length > 0) {
+    <h2 class="mt-4">Noch nicht gestartete Positionen</h2>
+    <ul>
+      @for (item of detail()!.unassignedItems; track item.orderItemId) {
+        <li>
+          @if (item.makerworldUrl) {
+            <a class="model-link" [href]="item.makerworldUrl" target="_blank" rel="noopener noreferrer">{{ item.description }} <i class="pi pi-external-link"></i></a>
+          } @else {
+            {{ item.description }}
+          }
+          × {{ item.qty }}
+        </li>
+      }
+    </ul>
+  }
+
+  <h2 class="mt-4">Batch-Items</h2>
+  @if (detail()!.batchItems.length === 0) {
+    <p class="tile-empty">Noch keine Batch-Items (Produktion noch nicht gestartet).</p>
+  } @else {
+    <div class="batch-list">
+      @for (item of detail()!.batchItems; track item.id) {
+        <div class="batch-row">
+          <div class="batch-main">
+            @if (item.makerworldUrl) {
+              <a class="model-link" [href]="item.makerworldUrl" target="_blank" rel="noopener noreferrer">{{ item.description }} <i class="pi pi-external-link"></i></a>
+            } @else {
+              <span>{{ item.description }}</span>
+            }
+            <span class="qty-info">
+              Geplant: {{ item.qtyPlanned }}
+              @if (item.isComplete) {
+                · Erfolg: {{ item.qtySuccess }} · Ausschuss: {{ item.qtyScrapNormal }} (davon Reklamation:
+                {{ item.qtyScrapComplaint }})
+              }
+            </span>
+          </div>
+          @if (!item.isComplete) {
+            <p-button size="small" label="Ist-Verbrauch erfassen" (click)="openCompleteDialog(item)"></p-button>
+          } @else {
+            <p-tag value="erfasst" severity="success" />
+          }
+        </div>
+      }
+    </div>
+  }
+}
+
+<!-- Produktionsstart -->
+<p-dialog header="Produktion starten" [(visible)]="startDialogVisible" [modal]="true" [style]="{ width: '560px' }">
+  @for (assignment of startAssignments(); track assignment.orderItemId) {
+    <div class="assignment-block">
+      @if (itemMakerworldUrl(assignment.orderItemId); as url) {
+        <a class="model-link" [href]="url" target="_blank" rel="noopener noreferrer">
+          <strong>{{ itemLabel(assignment.orderItemId) }}</strong> <i class="pi pi-external-link"></i>
+        </a>
+      } @else {
+        <strong>{{ itemLabel(assignment.orderItemId) }}</strong>
+        <small class="no-link">kein MakerWorld-Link hinterlegt</small>
+      }
+      <div class="spool-row">
+        <p-select
+          [options]="availableSpools()"
+          [ngModel]="assignment.spoolId"
+          (ngModelChange)="assignment.spoolId = $event"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Spule wählen"
+          class="spool-select"
+        >
+          <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
+        </p-select>
+        <p-inputnumber [(ngModel)]="assignment.amountG" suffix=" g" [min]="0" class="amount-input" />
+      </div>
+    </div>
+  }
+  <div class="dialog-actions">
+    <p-button label="Starten" [loading]="actionRunning()" (click)="confirmStart()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Ist-Verbrauch erfassen -->
+<p-dialog header="Ist-Verbrauch erfassen" [(visible)]="completeDialogVisible" [modal]="true" [style]="{ width: '560px' }">
+  <div class="qty-fields">
+    <div class="form-field">
+      <label>Erfolgreich</label>
+      <p-inputnumber [(ngModel)]="qtySuccess" [min]="0" />
+    </div>
+    <div class="form-field">
+      <label>Ausschuss (regulär)</label>
+      <p-inputnumber [(ngModel)]="qtyScrapNormal" [min]="0" />
+    </div>
+    <div class="form-field">
+      <label>Ausschuss (Reklamation)</label>
+      <p-inputnumber [(ngModel)]="qtyScrapComplaint" [min]="0" />
+    </div>
+  </div>
+
+  <h3>Materialverbrauch</h3>
+  @for (row of materialUsageRows(); track $index) {
+    <div class="spool-row">
+      <p-select
+        [options]="availableSpools()"
+        [ngModel]="row.spoolId"
+        (ngModelChange)="row.spoolId = $event"
+        optionLabel="label"
+        optionValue="id"
+        placeholder="Spule wählen"
+        class="spool-select"
+      >
+        <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
+      </p-select>
+      <p-inputnumber [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" placeholder="Verbrauch" />
+      <p-inputnumber [(ngModel)]="row.scrapAmountG" suffix=" g Fehldruck" [min]="0" class="amount-input" />
+      <p-button severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Zeile entfernen" (click)="removeMaterialUsageRow($index)"></p-button>
+    </div>
+  }
+  <p-button severity="secondary" label="Spule hinzufügen" icon="pi pi-plus" (click)="addMaterialUsageRow()"></p-button>
+
+  <div class="dialog-actions">
+    <p-button label="Erfassen" [loading]="actionRunning()" (click)="confirmComplete()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Fehlschlag -->
+<p-dialog header="Produktionsauftrag als fehlgeschlagen markieren" [(visible)]="failDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <label>Grund *</label>
+  <textarea pTextarea rows="3" [(ngModel)]="failReason" class="w-full"></textarea>
+  <div class="dialog-actions">
+    <p-button severity="danger" label="Als fehlgeschlagen markieren" [disabled]="!failReason().trim()" [loading]="actionRunning()" (click)="confirmFail()"></p-button>
+  </div>
+</p-dialog>

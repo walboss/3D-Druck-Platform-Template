@@ -1,0 +1,65 @@
+<div class="page-head">
+  <h1>Modell vorschlagen</h1>
+  <p class="intro">
+    Du hast auf MakerWorld ein Modell gefunden, das wir in den Katalog aufnehmen sollen? Schick uns den Link.
+    Wir prüfen den Vorschlag und nehmen das Modell bei Eignung auf. Keine Anmeldung nötig, keine Kontaktdaten.
+  </p>
+</div>
+
+@if (result()) {
+  <div class="success-box app-card">
+    <i class="pi pi-check-circle"></i>
+    @switch (result()) {
+      @case ('angelegt') {
+        <h2>Danke für deinen Vorschlag!</h2>
+        <p>Wir schauen uns das Modell an. Wenn es passt, taucht es demnächst im Katalog auf.</p>
+      }
+      @case ('bereits_vorgeschlagen') {
+        <h2>Danke – das Modell ist schon vorgemerkt.</h2>
+        <p>Jemand hat es bereits vorgeschlagen. Wir prüfen es.</p>
+      }
+      @case ('bereits_im_katalog') {
+        <h2>Das Modell ist bereits im Katalog.</h2>
+        <p>Schau im <a routerLink="/katalog">Katalog</a> nach – falls es dort noch nicht sichtbar ist, wird es gerade vorbereitet.</p>
+      }
+    }
+    <p-button label="Zum Katalog" icon="pi pi-th-large" routerLink="/katalog" styleClass="mt-3"></p-button>
+  </div>
+} @else {
+  <div class="form-wrap">
+    <section class="app-card">
+      <div class="form-field">
+        <label for="makerworldUrl">MakerWorld-Link *</label>
+        <input id="makerworldUrl" type="text" pInputText inputmode="url" [ngModel]="makerworldUrl()" (ngModelChange)="makerworldUrl.set($event)" placeholder="https://makerworld.com/en/models/…" />
+        @if (makerworldUrl().trim() && !linkValid()) {
+          <p class="hint hint-error">Bitte einen Link zu einer MakerWorld-Modellseite eingeben (…/models/&lt;Nummer&gt;).</p>
+        }
+      </div>
+
+      <div class="form-field">
+        <label for="note">Notiz <span class="optional">(optional, z. B. gewünschte Größe oder Farbe)</span></label>
+        <textarea id="note" pTextarea rows="3" [ngModel]="note()" (ngModelChange)="note.set($event)" [maxlength]="noteMaxLength"></textarea>
+        <p class="hint">{{ note().length }} / {{ noteMaxLength }} Zeichen</p>
+      </div>
+
+      <div class="turnstile-row">
+        <app-turnstile-widget (verified)="onTurnstileVerified($event)" (expired)="onTurnstileExpired()" />
+      </div>
+
+      @if (error()) {
+        <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+      }
+
+      <p-button
+        label="Vorschlag absenden"
+        icon="pi pi-send"
+        size="large"
+        [disabled]="!canSubmit()"
+        [loading]="submitting()"
+        (click)="submit()"
+        styleClass="w-full"
+        class="submit-btn"
+      ></p-button>
+    </section>
+  </div>
+}

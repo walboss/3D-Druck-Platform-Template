@@ -1,0 +1,56 @@
+<div class="admin-shell" [class.menu-open]="menuOpen()">
+  <header class="admin-topbar">
+    <button type="button" class="menu-btn" (click)="toggleMenu()" aria-label="Menü öffnen">
+      <i class="pi pi-bars"></i>
+    </button>
+    <span class="topbar-title">{{ currentTitle() }}</span>
+    <a routerLink="/" class="topbar-shop" title="Zum Shop" aria-label="Zum Shop">
+      <i class="pi pi-external-link"></i>
+    </a>
+  </header>
+
+  <div class="admin-backdrop" (click)="closeMenu()"></div>
+
+  <aside class="admin-sidebar">
+    <div class="admin-brand">
+      <span class="brand-icon"><i class="pi pi-box"></i></span>
+      <span>Admin</span>
+      <button type="button" class="close-btn" (click)="closeMenu()" aria-label="Menü schließen">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
+    <nav class="admin-nav">
+      @for (group of navGroups; track group.title) {
+        @if (group.title) {
+          <div class="nav-group-title">{{ group.title }}</div>
+        }
+        @for (item of group.items; track item.path) {
+          <a [routerLink]="item.path" class="nav-item" [class.active]="activePath() === item.path" (click)="closeMenu()">
+            <i [class]="item.icon"></i>
+            <span>{{ item.label }}</span>
+            @if (item.path === '/admin/katalog/vorschlaege' && openSuggestions() > 0) {
+              <span class="nav-badge" title="Offene Modellvorschläge">{{ openSuggestions() }}</span>
+            }
+          </a>
+        }
+      }
+    </nav>
+    <div class="sidebar-footer">
+      <button type="button" class="nav-item nav-item-muted theme-toggle-item" (click)="toggleTheme()">
+        <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+        <span>{{ theme() === 'dark' ? 'Helles Design' : 'Dunkles Design' }}</span>
+      </button>
+      <a routerLink="/" class="nav-item nav-item-muted">
+        <i class="pi pi-external-link"></i>
+        <span>Zum Shop</span>
+      </a>
+      <p-button label="Logout" icon="pi pi-sign-out" severity="secondary" [outlined]="true" styleClass="w-full" (click)="logout()" class="logout-btn"></p-button>
+    </div>
+  </aside>
+
+  <main class="admin-content">
+    <router-outlet />
+  </main>
+
+  <app-scroll-top-button />
+</div>

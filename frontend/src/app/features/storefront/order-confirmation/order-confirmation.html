@@ -1,0 +1,73 @@
+@if (loading()) {
+  <p-skeleton height="6rem" borderRadius="12px" />
+} @else if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (order()) {
+  <div class="confirmation-box">
+    <div class="success-head">
+      <span class="success-icon"><i class="pi pi-check"></i></span>
+      @if (showPrices()) {
+        <h1>Danke für deine Bestellung!</h1>
+        <p class="order-number">
+          Bestellnummer <strong>{{ order()!.order_number }}</strong>
+        </p>
+      } @else {
+        <h1>Wunschliste/Anfrage wurde übermittelt</h1>
+      }
+    </div>
+
+    <div class="app-card">
+      <h2>Deine Positionen</h2>
+      <div class="items-list">
+        @for (item of order()!.items; track item.description) {
+          <div class="item-row">
+            <span class="item-name">
+              {{ item.description }}
+              <span class="item-qty">× {{ item.qty }}</span>
+            </span>
+            @if (showPrices()) {
+              <span class="item-price">{{ item.final_price !== null ? (item.final_price | currency: 'EUR') : '–' }}</span>
+            }
+          </div>
+        }
+      </div>
+
+      <p-message severity="info" styleClass="mt-3">
+        @if (showPrices()) {
+          Du kannst den Status deiner Bestellung jederzeit über den Tracking-Link verfolgen. Bewahre
+          diesen Link gut auf.
+        } @else {
+          Du kannst den Status jederzeit über den folgenden Link ansehen. Bewahre diesen Link gut
+          auf.
+        }
+      </p-message>
+
+      <div class="link-box">
+        <label for="trackingUrl">Dein persönlicher Link</label>
+        <div class="link-row">
+          <input id="trackingUrl" type="text" pInputText readonly [value]="trackingUrl()" (focus)="$any($event.target).select()" />
+          <p-button
+            [label]="copied() ? 'Kopiert' : 'Kopieren'"
+            [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
+            severity="secondary"
+            [outlined]="true"
+            (click)="copyTrackingUrl()"
+          ></p-button>
+          @if (canShare) {
+            <p-button icon="pi pi-share-alt" severity="secondary" [outlined]="true" ariaLabel="Link teilen" (click)="shareTrackingUrl()"></p-button>
+          }
+        </div>
+        <p class="link-hint">Tipp: Link kopieren, als Lesezeichen speichern oder dir selbst schicken — wir verschicken ihn nicht per E-Mail.</p>
+      </div>
+
+      <p-button
+        [label]="showPrices() ? 'Bestellung verfolgen' : 'Status ansehen'"
+        [icon]="showPrices() ? 'pi pi-truck' : 'pi pi-eye'"
+        size="large"
+        [routerLink]="['/tracking', token()]"
+        styleClass="w-full"
+        class="track-btn"
+      ></p-button>
+    </div>
+  </div>
+}

@@ -1,0 +1,54 @@
+<h1>Sicherheit</h1>
+
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  @if (error()) {
+    <p-message severity="error" styleClass="mb-3">{{ error() }}</p-message>
+  }
+  @if (success()) {
+    <p-message severity="success" styleClass="mb-3">{{ success() }}</p-message>
+  }
+
+  <section class="security-card">
+    <h2>Zwei-Faktor-Authentifizierung (TOTP)</h2>
+
+    @if (enrollment(); as e) {
+      <p>Scanne den QR-Code mit einer Authenticator-App (z. B. Google Authenticator, Aegis, 1Password) und gib danach den angezeigten Code ein.</p>
+      <img class="qr" [src]="e.qrCode" alt="QR-Code für Authenticator-App" />
+      <p class="secret">Manuell: <code>{{ e.secret }}</code></p>
+
+      <div class="form-field">
+        <label>Code aus der App</label>
+        <input
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          pInputText
+          [(ngModel)]="code"
+          (keyup.enter)="confirmEnrollment()"
+        />
+      </div>
+      <div class="actions">
+        <p-button label="Bestätigen" icon="pi pi-check" [loading]="busy()" (click)="confirmEnrollment()"></p-button>
+        <p-button label="Abbrechen" severity="secondary" [text]="true" [disabled]="busy()" (click)="cancelEnrollment()"></p-button>
+      </div>
+    } @else if (verifiedFactor()) {
+      <p-message severity="success" styleClass="mb-3">
+        <i class="pi pi-shield"></i> 2FA ist aktiv. Beim Login wird der Authenticator-Code abgefragt.
+      </p-message>
+      <div class="actions">
+        <p-button label="Zum Dashboard" icon="pi pi-home" (click)="goToDashboard()"></p-button>
+        <p-button label="2FA entfernen" icon="pi pi-trash" severity="danger" [outlined]="true" [loading]="busy()" (click)="removeFactor()"></p-button>
+      </div>
+      <p class="hint">Neues Gerät? Erst entfernen, dann direkt neu einrichten. Ohne aktiven Faktor ist kein Zugriff auf Admin-Daten möglich.</p>
+    } @else {
+      <p-message severity="warn" styleClass="mb-3">
+        2FA ist nicht eingerichtet. Ohne 2FA sind Bestellungen, Katalog und alle anderen Admin-Bereiche gesperrt.
+      </p-message>
+      <p-button label="2FA jetzt einrichten" icon="pi pi-shield" [loading]="busy()" (click)="startEnrollment()"></p-button>
+    }
+  </section>
+}

@@ -1,0 +1,17 @@
+.clickable-row {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--app-surface-hover);
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}

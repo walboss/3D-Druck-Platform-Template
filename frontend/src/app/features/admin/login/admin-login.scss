@@ -1,0 +1,84 @@
+.login-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--app-bg);
+}
+
+.login-card {
+  width: min(380px, 100%);
+  background: var(--app-surface);
+  border-radius: var(--app-radius);
+  padding: 1.5rem;
+  box-shadow: var(--app-shadow-md);
+
+  @media (min-width: 480px) {
+    padding: 2rem;
+  }
+
+  h1 {
+    margin: 0 0 1.5rem;
+    font-size: 1.3rem;
+    text-align: center;
+  }
+}
+
+.form-field {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  input {
+    width: 100%;
+  }
+
+  ::ng-deep .p-password {
+    width: 100%;
+
+    input {
+      width: 100%;
+    }
+  }
+}
+
+.login-btn {
+  display: block;
+  width: 100%;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1rem 0;
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--p-content-border-color, #e0e0e0);
+  }
+
+  span {
+    padding: 0 0.75rem;
+  }
+}
+
+.mfa-hint {
+  margin: -0.75rem 0 1.25rem;
+  text-align: center;
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.9rem;
+}
+
+.login-btn + .login-btn {
+  margin-top: 0.5rem;
+}

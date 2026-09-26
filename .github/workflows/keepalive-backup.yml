@@ -1,0 +1,76 @@
+name: Keepalive & Backup
+
+on:
+  schedule:
+    - cron: '0 3 */3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keepalive-backup:
+    # Nicht im Vorlagen-Repo selbst ausführen (dort gibt es keine Secrets);
+    # in deiner Kopie läuft der Job normal.
+    if: github.repository != 'walboss/3D-Druck-Platform-Template'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Keepalive (Supabase REST API)
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl -sf -o /dev/null \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "https://DEINE-PROJECT-ID.supabase.co/rest/v1/products?select=id&limit=1"
+
+      - name: Set backup date
+        id: date
+        run: echo "date=$(date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Install postgresql-client-17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: pg_dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" -f "backup-${{ steps.date.outputs.date }}.sql"
+
+      - name: Encrypt backup
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          # Passphrase ueber stdin statt als Argument (sonst in der
+          # Prozessliste sichtbar).
+          printf '%s' "$BACKUP_ENCRYPTION_KEY" | gpg --symmetric --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 \
+            --output "backup-${{ steps.date.outputs.date }}.sql.gpg" \
+            "backup-${{ steps.date.outputs.date }}.sql"
+          rm "backup-${{ steps.date.outputs.date }}.sql"
+
+      - name: Checkout backup repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DEIN-GITHUB-NAME/3-D-Druck-Backup
+          token: ${{ secrets.BACKUP_REPO_PAT }}
+          path: backup-repo
+
+      - name: Commit, cleanup and push backup
+        working-directory: backup-repo
+        run: |
+          cp "../backup-${{ steps.date.outputs.date }}.sql.gpg" .
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "backup-${{ steps.date.outputs.date }}.sql.gpg"
+
+          ls -1 backup-*.sql.gpg | sort -r | tail -n +11 | xargs -r git rm --
+
+          git commit -m "Backup ${{ steps.date.outputs.date }}"
+          git push

@@ -1,0 +1,21 @@
+# Sicherheits-Header fuer alle statischen Assets (Cloudflare Workers Static
+# Assets).
+#
+# Content-Security-Policy scharf seit 2026-09-26 (vorher Report-Only; Live-
+# Klicktest Shop, Checkout mit Turnstile, Admin ohne Verstoesse). Quellen:
+#   script-src  sha256-lb1i… = Theme-Skript in src/index.html (bei Aenderung
+#               des Skripts neu berechnen!), sha256-Mhtp… + 'unsafe-hashes' =
+#               onload="this.media='all'" aus Angulars Critical-CSS-Inlining,
+#               challenges.cloudflare.com = Turnstile
+#   style-src   'unsafe-inline' = PrimeNG/Angular-Inline-Styles
+#   font-src    Schrift Inter selbst gehostet (@fontsource/inter, kein Google)
+#   img-src     https: = MakerWorld-Bild-Hotlinks (CDN-Hosts wechseln),
+#               data: = TOTP-QR-Code
+#   connect-src Supabase (REST/Auth/Storage + Realtime-WSS), API-Worker
+#   frame-src   Turnstile-Widget
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-lb1iy4GeWwSdf+xOnOnfgZDYJZPHl6qwdewr4x0su4s=' 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://DEINE-PROJECT-ID.supabase.co wss://DEINE-PROJECT-ID.supabase.co https://3d-druck-platform-api.DEINE-SUBDOMAIN.workers.dev; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'

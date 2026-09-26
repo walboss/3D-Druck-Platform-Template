@@ -1,0 +1,103 @@
+<h1>{{ listLabel() }}</h1>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="5rem" borderRadius="12px" styleClass="mb-2" />
+  <p-skeleton height="5rem" borderRadius="12px" styleClass="mb-2" />
+} @else if (rows().length === 0) {
+  <div class="empty-state app-card">
+    <i class="pi pi-list"></i>
+    <p>Deine {{ listLabel() }} ist leer.</p>
+    <p-button [label]="continueBrowsingLabel()" icon="pi pi-th-large" (click)="continueBrowsing()"></p-button>
+  </div>
+} @else {
+  <div class="cart-layout">
+    <div class="cart-main-col">
+      <div class="cart-list">
+        @for (row of rows(); track row.cartItemId) {
+          <div class="cart-row app-card">
+            <a class="cart-image" [routerLink]="['/produkt', row.productId]" [attr.aria-label]="row.productName + ' ansehen'">
+              @if (row.images[0]?.url) {
+                <img [src]="row.images[0].url" [alt]="row.productName" />
+              } @else {
+                <i class="pi pi-image"></i>
+              }
+            </a>
+
+            <div class="cart-main">
+              <a class="cart-name" [routerLink]="['/produkt', row.productId]">{{ row.productName }}</a>
+              <div class="cart-variant">{{ row.sizeLabel }}</div>
+              @if (row.configLabel) {
+                <div class="cart-config">{{ row.configLabel }}</div>
+              }
+              @if (showPrices()) {
+                @if (row.finalPrice !== null) {
+                  <div class="cart-unit-price">{{ row.finalPrice | currency: 'EUR' }} / Stück</div>
+                } @else {
+                  <div class="cart-unit-price muted">Preis wird bei Bestellung final berechnet</div>
+                }
+              }
+            </div>
+
+            <p-button
+              severity="secondary"
+              [text]="true"
+              [rounded]="true"
+              icon="pi pi-trash"
+              ariaLabel="Entfernen"
+              (click)="removeItem(row)"
+              class="cart-remove"
+            ></p-button>
+
+            <div class="cart-controls">
+              <p-inputnumber
+                [ngModel]="row.qty"
+                (ngModelChange)="updateQty(row, $event)"
+                [min]="row.minQty"
+                [max]="row.maxQty"
+                [step]="row.stepQty"
+                [showButtons]="true"
+                buttonLayout="horizontal"
+                incrementButtonIcon="pi pi-plus"
+                decrementButtonIcon="pi pi-minus"
+                [inputStyle]="{ width: '3.5rem', 'text-align': 'center' }"
+                class="cart-qty"
+              />
+
+              @if (showPrices()) {
+                <div class="cart-line-total">
+                  {{ (row.finalPrice ?? 0) * row.qty | currency: 'EUR' }}
+                </div>
+              }
+            </div>
+
+            @if (isQtyInvalid(row)) {
+              <p-message severity="error" styleClass="cart-row-error">
+                {{ qtyInvalidLabel() }}
+              </p-message>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <aside class="cart-summary app-card">
+      <h2>Zusammenfassung</h2>
+      <div class="summary-line">
+        <span>Artikel</span>
+        <span>{{ rows().length }}</span>
+      </div>
+      @if (showPrices()) {
+        <div class="summary-line summary-total">
+          <span>Gesamtsumme</span>
+          <span class="total">{{ total() | currency: 'EUR' }}</span>
+        </div>
+      }
+      <div class="summary-actions">
+        <p-button [label]="checkoutLabel()" icon="pi pi-arrow-right" iconPos="right" styleClass="w-full" (click)="goToCheckout()"></p-button>
+        <p-button severity="secondary" [text]="true" [label]="continueBrowsingLabel()" styleClass="w-full" (click)="continueBrowsing()"></p-button>
+      </div>
+    </aside>
+  </div>
+}

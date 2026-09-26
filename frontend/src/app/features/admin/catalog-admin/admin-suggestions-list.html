@@ -1,0 +1,46 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück zur Katalogpflege" (click)="back()"></p-button>
+<h1 class="mt-2">Modellvorschläge</h1>
+<p class="hint">Von Kunden ohne Login eingereichte MakerWorld-Links. Ohne Import entsteht kein Produkt.</p>
+
+@if (error()) {
+  <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+}
+
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else if (suggestions().length === 0) {
+  <p class="empty">Keine offenen Vorschläge.</p>
+} @else {
+  <div class="suggestion-list">
+    @for (s of suggestions(); track s.id) {
+      <div class="suggestion-row">
+        <div class="suggestion-main">
+          <a class="suggestion-link" [href]="s.makerworldUrl" target="_blank" rel="noopener">
+            Modell {{ s.makerworldModelId }} <i class="pi pi-external-link"></i>
+          </a>
+          <span class="suggestion-date">{{ s.createdAt | date: 'dd.MM.yyyy HH:mm' }}</span>
+          @if (s.note) {
+            <p class="suggestion-note">„{{ s.note }}"</p>
+          }
+        </div>
+        <div class="suggestion-actions">
+          <p-button size="small" label="Importieren" icon="pi pi-download" (click)="importSuggestion(s)"></p-button>
+          <p-button size="small" severity="secondary" label="Ablehnen" (click)="openReject(s)"></p-button>
+        </div>
+      </div>
+    }
+  </div>
+}
+
+<p-dialog header="Vorschlag ablehnen" [(visible)]="rejectDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <p class="hint">Der Vorschlag wird als abgelehnt markiert (nicht gelöscht). Grund ist optional, nur für das Protokoll.</p>
+  <div class="form-field">
+    <label>Grund (optional)</label>
+    <input type="text" pInputText [ngModel]="rejectReason()" (ngModelChange)="rejectReason.set($event)" class="w-full" />
+  </div>
+  <div class="dialog-actions">
+    <p-button severity="secondary" label="Abbrechen" [text]="true" (click)="rejectDialogVisible.set(false)"></p-button>
+    <p-button severity="danger" label="Ablehnen" [loading]="rejecting()" (click)="confirmReject()"></p-button>
+  </div>
+</p-dialog>

@@ -1,0 +1,134 @@
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mt-sm {
+  margin-top: 0.5rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  vertical-align: middle;
+  margin-right: 0.35rem;
+}
+
+.critical-row {
+  // Statt festem Hell-Rot (unlesbar im Dark Mode, da Textfarbe --app-text
+  // hell wird): Rot-Anteil in die aktuelle Oberflächenfarbe einmischen,
+  // Text bleibt auf --app-text (immer kontrastreich zur Mischfarbe).
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 12%, var(--app-surface));
+  color: var(--app-text);
+}
+
+.hint {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+}
+
+.field-error {
+  color: var(--p-red-500, #dc2626);
+  font-size: 0.85rem;
+}
+
+.bware-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bware-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+}
+
+.form-field {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tile-empty {
+  color: var(--p-text-muted-color, #6c757d);
+}
+
+// PrimeNG 22 liefert für p-table keine automatische Mobil-Ansicht mehr
+// (responsiveLayout-Input entfernt) -- ab hier eigene Karten-Darstellung
+// pro Zeile statt seitlichem Tabellen-Scroll.
+@media (max-width: 640px) {
+  ::ng-deep .stack-on-mobile {
+    .p-datatable-thead {
+      display: none;
+    }
+
+    .p-datatable-tbody > tr {
+      display: block;
+      border: 1px solid var(--p-content-border-color, #e0e0e0);
+      border-radius: 8px;
+      margin-bottom: 0.6rem;
+      padding: 0.5rem 0.85rem;
+    }
+
+    .p-datatable-tbody > tr > td {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+      border: none;
+      padding: 0.35rem 0;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .p-datatable-tbody > tr > td::before {
+      content: attr(data-label);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--p-text-muted-color, #6c757d);
+    }
+
+    .p-datatable-tbody > tr > td.col-actions {
+      flex-direction: row;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    .p-datatable-tbody > tr > td.col-actions::before,
+    .p-datatable-tbody > tr > td[data-label='']::before {
+      content: none;
+    }
+  }
+}

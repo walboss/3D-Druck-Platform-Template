@@ -1,0 +1,62 @@
+.offer-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.page-head {
+  margin-bottom: 1.25rem;
+}
+
+.validity {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--app-text-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.items-list {
+  margin: 0.5rem 0 0;
+}
+
+.item-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.item-name {
+  min-width: 0;
+}
+
+.item-qty {
+  color: var(--app-text-muted);
+  white-space: nowrap;
+}
+
+.item-price {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1.25rem;
+  padding: 1rem 0;
+}
+
+.actions-row {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.hint {
+  color: var(--app-text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: center;
+}

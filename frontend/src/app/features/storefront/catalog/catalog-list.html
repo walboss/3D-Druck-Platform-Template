@@ -1,0 +1,139 @@
+<div class="page-head">
+  <h1>Katalog</h1>
+</div>
+
+<div class="catalog-toolbar">
+  <div class="search-field">
+    <i class="pi pi-search"></i>
+    <input
+      type="search"
+      pInputText
+      placeholder="Suche nach Name oder Tag…"
+      [ngModel]="searchText()"
+      (ngModelChange)="searchText.set($event); onFilterChanged()"
+    />
+  </div>
+
+  <div class="filter-row">
+    <p-multiselect
+      [options]="availableCategories()"
+      optionLabel="label"
+      optionValue="value"
+      [ngModel]="selectedCategories()"
+      (ngModelChange)="selectedCategories.set($event); onFilterChanged()"
+      placeholder="Kategorien"
+      [maxSelectedLabels]="1"
+      selectedItemsLabel="{0} Kategorien"
+      [showToggleAll]="false"
+      class="category-filter"
+    />
+
+    <p-select
+      [options]="sortOptions()"
+      [ngModel]="sortOption()"
+      (ngModelChange)="sortOption.set($event)"
+      optionLabel="label"
+      optionValue="value"
+      class="sort-select"
+    />
+  </div>
+</div>
+
+<app-category-bar
+  [categories]="availableCategories()"
+  [selected]="selectedCategories()"
+  (selectedChange)="selectedCategories.set($event); onFilterChanged()"
+/>
+
+@if (seasonBanner(); as banner) {
+  <app-season-banner [banner]="banner" (selected)="selectSeasonCategory($event)" />
+}
+
+@if (otherSeasonOptions().length > 0 && selectedCategories().length === 0) {
+  <div class="season-row">
+    <span class="season-label"><i class="pi pi-calendar"></i> {{ seasonBanner() ? 'Auch aktuell:' : 'Gerade aktuell:' }}</span>
+    @for (season of otherSeasonOptions(); track season.value) {
+      <button type="button" class="season-chip" (click)="selectSeasonCategory(season.value)">
+        {{ season.name }}
+      </button>
+    }
+  </div>
+}
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+  <div class="retry-row">
+    <p-button label="Erneut versuchen" (click)="load()"></p-button>
+  </div>
+} @else if (loading()) {
+  <div class="product-grid">
+    @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+      <div class="product-card skeleton-card">
+        <p-skeleton height="100%" styleClass="skeleton-image" />
+        <div class="product-info">
+          <p-skeleton width="70%" />
+          <p-skeleton width="40%" styleClass="mt-2" />
+        </div>
+      </div>
+    }
+  </div>
+} @else if (pagedProducts().length === 0) {
+  <div class="empty-state">
+    <i class="pi pi-search"></i>
+    <p>Keine Produkte gefunden.</p>
+    @if (hasActiveFilters()) {
+      <p-button label="Filter zurücksetzen" icon="pi pi-filter-slash" [outlined]="true" (click)="resetFilters()"></p-button>
+    }
+    <p class="empty-suggest">Etwas auf MakerWorld entdeckt? <a routerLink="/vorschlagen">Modell vorschlagen</a></p>
+  </div>
+} @else {
+  <div class="product-grid">
+    @for (product of pagedProducts(); track product.product_id) {
+      <a class="product-card" (click)="openProduct(product)" tabindex="0" (keyup.enter)="openProduct(product)">
+        <div class="product-image">
+          @if (isNew(product)) {
+            <span class="new-badge">Neu</span>
+          }
+          @if (coverImage(product)) {
+            <img [src]="coverImage(product)" [alt]="product.name" loading="lazy" />
+          } @else {
+            <div class="no-image"><i class="pi pi-image"></i></div>
+          }
+        </div>
+        <div class="product-info">
+          <div class="product-info-row">
+            <h3>{{ product.name }}</h3>
+            <button
+              type="button"
+              class="like-btn"
+              [class.liked]="product.likedByMe"
+              [attr.aria-label]="product.likedByMe ? 'Like entfernen' : 'Produkt liken'"
+              (click)="toggleLike(product, $event)"
+            >
+              <i [class]="product.likedByMe ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
+              <span>{{ product.likesCount }}</span>
+            </button>
+          </div>
+          @if (showPrices()) {
+            @if (product.minPrice !== null) {
+              <p class="price">
+                @if (product.hasMultiplePrices) {
+                  <span class="price-prefix">ab</span>
+                }
+                {{ product.minPrice | currency: 'EUR' }}
+              </p>
+            } @else {
+              <p class="price price-unavailable">Preis auf Anfrage</p>
+            }
+          }
+        </div>
+      </a>
+    }
+  </div>
+
+  @if (hasMore()) {
+    <div #scrollAnchor class="scroll-anchor">
+      <p-skeleton width="2rem" height="2rem" styleClass="loading-spinner" />
+    </div>
+  }
+}
