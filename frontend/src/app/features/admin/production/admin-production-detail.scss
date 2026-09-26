@@ -1,0 +1,95 @@
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.meta {
+  color: var(--p-text-muted-color, #6c757d);
+}
+
+.order-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.batch-row {
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.batch-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.qty-info {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #6c757d);
+}
+
+.assignment-block {
+  margin-bottom: 1rem;
+}
+
+.spool-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.spool-select {
+  flex: 1;
+}
+
+.amount-input {
+  width: 150px;
+}
+
+.qty-fields {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.form-field {
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mt-4 {
+  margin-top: 2rem;
+}
+
+.tile-empty {
+  color: var(--p-text-muted-color, #6c757d);
+}

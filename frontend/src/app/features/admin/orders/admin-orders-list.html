@@ -1,0 +1,64 @@
+<h1>Bestellungen</h1>
+
+<div class="toolbar">
+  <input type="text" pInputText placeholder="Suche nach Bestellnummer/Kundenname" [(ngModel)]="search" class="search-input" />
+  <p-multiselect
+    [options]="statusOptions"
+    [ngModel]="statusFilter()"
+    (ngModelChange)="statusFilter.set($event)"
+    optionLabel="label"
+    optionValue="value"
+    placeholder="Status filtern"
+    class="status-filter"
+  />
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-table [value]="filteredOrders()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+    <ng-template #header>
+      <tr>
+        <th>Bestellnummer</th>
+        <th>Kunde</th>
+        <th>Status</th>
+        <th>Erstellt</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-order>
+      <tr class="order-row" (click)="openOrder(order)">
+        <td>
+          {{ order.order_number }}
+          @if (order.hasExceptionItems) {
+            <p-tag value="Ausnahmepfad" severity="warn" styleClass="ml-2" />
+          }
+          @if (order.customerMessage) {
+            <button
+              type="button"
+              class="comment-button"
+              aria-label="Kundenkommentar anzeigen"
+              (click)="commentPop.toggle($event); $event.stopPropagation()"
+            >
+              <i class="pi pi-comment"></i>
+            </button>
+            <p-popover #commentPop>
+              <div class="comment-popover">
+                <strong>Kundenkommentar</strong>
+                <p>{{ order.customerMessage }}</p>
+              </div>
+            </p-popover>
+          }
+        </td>
+        <td>{{ order.customerName }}</td>
+        <td><p-tag [value]="order.status" [severity]="statusSeverity(order.status)" /></td>
+        <td>{{ order.created_at | date: 'dd.MM.yyyy HH:mm' }}</td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="4">Keine Bestellungen gefunden.</td></tr>
+    </ng-template>
+  </p-table>
+}

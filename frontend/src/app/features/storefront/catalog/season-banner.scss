@@ -1,0 +1,100 @@
+:host {
+  display: block;
+}
+
+.season-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  margin: -0.25rem 0 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--p-primary-color) 14%, var(--app-surface)),
+    var(--app-surface)
+  );
+  color: var(--app-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    border-color: var(--p-primary-color);
+  }
+
+  h2 {
+    margin: 0.2rem 0 0.25rem;
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  p {
+    margin: 0;
+    color: var(--app-text-muted);
+    font-size: 0.9rem;
+  }
+}
+
+.season-banner-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.season-banner-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--p-primary-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.season-banner-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  color: var(--p-primary-color);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.season-banner-images {
+  display: flex;
+  flex: 0 0 auto;
+
+  img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 2px solid var(--app-surface);
+    background: var(--app-surface);
+
+    & + img {
+      margin-left: -18px;
+    }
+
+    // Auf dem Smartphone nur zwei Bilder, damit der Text Platz hat.
+    &:nth-child(n + 3) {
+      display: none;
+    }
+  }
+
+  @media (min-width: 768px) {
+    img {
+      width: 96px;
+      height: 96px;
+
+      &:nth-child(n + 3) {
+        display: block;
+      }
+    }
+  }
+}

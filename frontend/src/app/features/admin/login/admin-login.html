@@ -1,0 +1,63 @@
+@if (checkingSession()) {
+  <div class="login-page">
+    <i class="pi pi-spin pi-spinner"></i>
+  </div>
+} @else if (mfaStep()) {
+  <div class="login-page">
+    <div class="login-card">
+      <h1>Bestätigungscode</h1>
+      <p class="mfa-hint">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
+
+      <div class="form-field">
+        <label>Code</label>
+        <input
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          pInputText
+          [(ngModel)]="mfaCode"
+          (keyup.enter)="verifyMfa()"
+          autofocus
+        />
+      </div>
+
+      @if (error()) {
+        <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+      }
+
+      <p-button label="Bestätigen" icon="pi pi-check" [loading]="loading()" (click)="verifyMfa()" styleClass="w-full" class="login-btn"></p-button>
+      <p-button label="Abbrechen" severity="secondary" [text]="true" (click)="cancelMfa()" styleClass="w-full" class="login-btn"></p-button>
+    </div>
+  </div>
+} @else {
+  <div class="login-page">
+    <div class="login-card">
+      <h1>Admin-Login</h1>
+
+      <div class="form-field">
+        <label>E-Mail</label>
+        <input type="email" pInputText [(ngModel)]="email" (keyup.enter)="loginWithPassword()" />
+      </div>
+      <div class="form-field">
+        <label>Passwort</label>
+        <p-password
+          [(ngModel)]="password"
+          [feedback]="false"
+          [toggleMask]="true"
+          (keyup.enter)="loginWithPassword()"
+        />
+      </div>
+
+      @if (error()) {
+        <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+      }
+
+      <p-button label="Anmelden" icon="pi pi-sign-in" [loading]="loading()" (click)="loginWithPassword()" styleClass="w-full" class="login-btn"></p-button>
+
+      <div class="divider"><span>oder</span></div>
+
+      <p-button severity="secondary" label="Mit Google anmelden" icon="pi pi-google" (click)="loginWithGoogle()" [outlined]="true" styleClass="w-full" class="login-btn"></p-button>
+    </div>
+  </div>
+}

@@ -1,0 +1,166 @@
+.form-field {
+  margin-bottom: 1rem;
+  max-width: 480px;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 480px;
+
+  label {
+    margin-bottom: 0;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--p-text-muted-color);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tag-pill {
+  background: var(--p-surface-100, #f4f4f5);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  i {
+    cursor: pointer;
+    font-size: 0.7rem;
+  }
+}
+
+.tag-input-row,
+.add-option-row,
+.makerworld-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.makerworld-row .w-full {
+  flex: 1;
+}
+
+.makerworld-images {
+  max-width: none;
+}
+
+.makerworld-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.makerworld-image-card {
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--p-surface-100, #f4f4f5);
+  }
+}
+
+.makerworld-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.image-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.image-url {
+  flex: 1;
+}
+
+.variant-list,
+.part-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.variant-row,
+.option-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+}
+
+.variant-meta {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+  margin-left: 0.75rem;
+}
+
+.variant-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hint {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}

@@ -1,0 +1,38 @@
+name: Deploy
+
+# Automatischer DB-Migrations-Push bei jedem Push/Merge nach main.
+# Frontend/Worker-Deploy laeuft bewusst NICHT hier, sondern lokal
+# (siehe ANLEITUNG.md) — dafuer waeren Cloudflare-Secrets in GitHub noetig.
+#
+# Benoetigtes Repository-Secret:
+#   SUPABASE_DB_URL
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  migrations:
+    # Nicht im Vorlagen-Repo selbst ausführen (dort gibt es keine Secrets);
+    # in deiner Kopie läuft der Job normal.
+    if: github.repository != 'walboss/3D-Druck-Platform-Template'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with:
+          # Feste Version statt "latest" (gleich wie package-lock.json), damit
+          # kein ungeprueftes CLI-Update mit dem DB-Zugang laeuft.
+          version: 2.118.0
+      - name: supabase db push
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase db push --db-url "$SUPABASE_DB_URL"

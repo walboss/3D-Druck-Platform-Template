@@ -1,0 +1,83 @@
+@if (visible()) {
+  <div class="mapping">
+    <div class="mapping-head">
+      <strong>Platten &amp; Farben aus MakerWorld</strong>
+      <p-selectbutton
+        [options]="modeOptions()"
+        optionLabel="label"
+        optionValue="value"
+        [ngModel]="state().mode"
+        (ngModelChange)="setMode($event)"
+        [disabled]="disabled()"
+        [allowEmpty]="false"
+        size="small"
+      />
+    </div>
+
+    @if (showAreaNames()) {
+      <p class="mapping-hint">
+        Teil-Namen vergeben, z. B. „Stiel“ und „Kopf“. <strong>Gleicher Name = gleiches Teil</strong> (Gramm und Zeit
+        werden addiert). Der Kunde wählt später je Teil die Farbe.
+      </p>
+    }
+
+    <div class="plates">
+      @for (plate of plates(); track plate.plateNo) {
+        <div
+          class="plate"
+          [class.plate-inactive]="!isPlateActive(plate.plateNo)"
+          [class.plate-selectable]="state().mode === 'onePlate'"
+          (click)="selectPlate(plate.plateNo)"
+        >
+          <div class="plate-head">
+            @if (plate.imageUrl) {
+              <img [src]="plate.imageUrl" alt="" loading="lazy" />
+            }
+            <div class="plate-info">
+              <span class="plate-title">
+                @if (state().mode === 'onePlate') {
+                  <input type="radio" [checked]="state().selectedPlate === plate.plateNo" [disabled]="disabled()" />
+                }
+                Platte {{ plate.plateNo }}
+              </span>
+              <span class="plate-meta">{{ formatMinutes(plate.printMinutes) }} · {{ plate.weightG ?? '–' }} g</span>
+            </div>
+          </div>
+
+          @if (state().mode === 'perPlate') {
+            <input
+              type="text"
+              pInputText
+              class="w-full plate-name"
+              placeholder="Produktname"
+              [ngModel]="state().plateNames[plate.plateNo]"
+              (ngModelChange)="setPlateName(plate.plateNo, $event)"
+              [disabled]="disabled()"
+              (click)="$event.stopPropagation()"
+            />
+          }
+
+          @for (area of areasOf(plate.plateNo); track area.key) {
+            <div class="area">
+              <span class="swatch" [style.background]="area.color ?? 'transparent'" [title]="area.color ?? ''"></span>
+              <span class="area-meta">{{ area.type ?? 'Filament' }} · {{ area.usedG }} g</span>
+              @if (showAreaNames()) {
+                <input
+                  type="text"
+                  pInputText
+                  class="area-name"
+                  placeholder="Teil-Name"
+                  [ngModel]="state().areaNames[area.key]"
+                  (ngModelChange)="setAreaName(area.key, $event)"
+                  [disabled]="disabled()"
+                  (focus)="selectPlate(plate.plateNo)"
+                  (click)="$event.stopPropagation()"
+                />
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

@@ -1,0 +1,107 @@
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.hint {
+  color: var(--p-text-muted-color, #4b5563);
+  font-size: 0.9rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.default-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color, #fff);
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+:host ::ng-deep .is-default .p-button-icon {
+  color: #f5b301;
+}
+
+tr.inactive td {
+  opacity: 0.55;
+}
+
+.form-field {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+:host ::ng-deep .w-full .p-inputnumber-input {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+// Karten-Darstellung auf dem Smartphone wie Lager/Filament (admin-inventory).
+@media (max-width: 640px) {
+  ::ng-deep .stack-on-mobile {
+    .p-datatable-thead {
+      display: none;
+    }
+
+    .p-datatable-tbody > tr {
+      display: block;
+      border: 1px solid var(--p-content-border-color, #e0e0e0);
+      border-radius: 8px;
+      margin-bottom: 0.6rem;
+      padding: 0.5rem 0.85rem;
+    }
+
+    .p-datatable-tbody > tr > td {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.15rem;
+      border: none;
+      padding: 0.35rem 0;
+      text-align: left;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .p-datatable-tbody > tr > td::before {
+      content: attr(data-label);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--p-text-muted-color, #6c757d);
+    }
+
+    .p-datatable-tbody > tr > td.col-actions {
+      flex-direction: row;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    .p-datatable-tbody > tr > td.col-actions::before {
+      content: none;
+    }
+  }
+}

@@ -1,0 +1,57 @@
+.security-card {
+  max-width: 520px;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+  }
+}
+
+.qr {
+  display: block;
+  width: 200px;
+  height: 200px;
+  margin: 1rem 0;
+  background: #fff;
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: var(--app-radius);
+}
+
+.secret {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #6c757d);
+  word-break: break-all;
+
+  code {
+    user-select: all;
+  }
+}
+
+.form-field {
+  margin-bottom: 1.25rem;
+  max-width: 240px;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+
+  input {
+    width: 100%;
+    font-size: 1.25rem;
+    letter-spacing: 0.25em;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.hint {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, #6c757d);
+}

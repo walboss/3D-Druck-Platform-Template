@@ -1,0 +1,17 @@
+.clickable-row {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--p-surface-50, #f8f9fa);
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}

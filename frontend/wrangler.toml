@@ -1,0 +1,18 @@
+name = "3d-druck-platform"
+compatibility_date = "2026-09-18"
+
+# Link-Vorschau für Produktseiten (worker/index.js). Der Worker läuft nur für
+# /produkt/*, alle anderen Pfade liefert Cloudflare direkt aus den Assets.
+main = "worker/index.js"
+
+[assets]
+directory = "dist/frontend/browser"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/produkt/*"]
+
+# Öffentliche Werte (identisch mit src/environments/environment.prod.ts, der
+# Anon-Key steckt ohnehin im Frontend-Bundle) — kein Geheimnis.
+[vars]
+SUPABASE_URL = "https://DEINE-PROJECT-ID.supabase.co"
+SUPABASE_ANON_KEY = "DEIN-ANON-KEY"

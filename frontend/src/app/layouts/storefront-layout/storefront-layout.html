@@ -1,0 +1,73 @@
+<p-toast position="top-center" />
+
+<header class="storefront-header">
+  <nav class="storefront-nav">
+    <a routerLink="/" class="brand">
+      <img src="/brand/logo.png" alt="Mein 3D-Druck" class="brand-logo" />
+    </a>
+
+    <div class="nav-links">
+      @for (item of navItems(); track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          class="nav-link"
+          [class.nav-link-cart]="item.path === listPath()"
+        >
+          <i [class]="item.icon"></i>
+          <span>{{ item.label }}</span>
+          @if (item.path === listPath() && cartCount() > 0) {
+            <span class="cart-badge">{{ cartCount() }}</span>
+          }
+        </a>
+      }
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="theme-toggle-btn"
+        (click)="toggleTheme()"
+        [attr.aria-label]="theme() === 'dark' ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'"
+      >
+        <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+
+<main class="storefront-content">
+  <router-outlet />
+</main>
+
+<footer class="storefront-footer">
+  <p>
+    &copy; {{ year }} Mein 3D-Druck
+    <span class="footer-sep">·</span>
+    <a routerLink="/vorschlagen" class="footer-link">Modell vorschlagen</a>
+  </p>
+  @if (legalPagesEnabled) {
+    <p class="footer-legal">
+      <a routerLink="/impressum" class="footer-link">Impressum</a>
+      <span class="footer-sep">·</span>
+      <a routerLink="/datenschutz" class="footer-link">Datenschutz</a>
+    </p>
+  }
+  <p class="footer-privacy">Für die Like-Funktion wird ein technisch notwendiges Cookie gesetzt.</p>
+</footer>
+
+<app-scroll-top-button [aboveBottomNav]="true" />
+
+<nav class="bottom-nav" aria-label="Hauptnavigation">
+  @for (item of navItems(); track item.path) {
+    <a [routerLink]="item.path" routerLinkActive="active" class="bottom-nav-item">
+      <span class="bottom-nav-icon">
+        <i [class]="item.icon"></i>
+        @if (item.path === listPath() && cartCount() > 0) {
+          <span class="cart-badge">{{ cartCount() }}</span>
+        }
+      </span>
+      <span class="bottom-nav-label">{{ item.shortLabel }}</span>
+    </a>
+  }
+</nav>

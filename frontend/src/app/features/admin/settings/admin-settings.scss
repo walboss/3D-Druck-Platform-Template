@@ -1,0 +1,114 @@
+.form-field {
+  margin-bottom: 1.25rem;
+  max-width: 360px;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+  }
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  label {
+    margin-bottom: 0;
+  }
+}
+
+.settings-section {
+  max-width: 560px;
+  margin-bottom: 1.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--p-content-border-color, rgba(128, 128, 128, 0.25));
+
+  h2 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--p-text-muted-color);
+    margin: 0 0 0.9rem;
+  }
+
+  .form-field {
+    max-width: none;
+  }
+}
+
+.mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--p-content-border-color, rgba(128, 128, 128, 0.35));
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &.selected {
+    border-color: var(--p-primary-color);
+    background: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
+  }
+}
+
+.mode-radio {
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  border: 2px solid var(--p-text-muted-color);
+  border-radius: 50%;
+
+  .selected & {
+    border-color: var(--p-primary-color);
+    background: radial-gradient(circle, var(--p-primary-color) 45%, transparent 50%);
+  }
+}
+
+.mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.mode-label {
+  font-weight: 600;
+}
+
+.mode-desc,
+.hint {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+}
+
+.advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0.6rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--p-primary-color);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.advanced {
+  padding-left: 1.2rem;
+}

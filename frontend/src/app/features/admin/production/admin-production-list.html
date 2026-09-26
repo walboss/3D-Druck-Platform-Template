@@ -1,0 +1,67 @@
+<div class="header-row">
+  <h1>Produktionsverwaltung</h1>
+  <p-button label="Neuer Produktionsauftrag" icon="pi pi-plus" (click)="openCreateDialog()"></p-button>
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-table [value]="orders()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+    <ng-template #header>
+      <tr>
+        <th>Drucker</th>
+        <th>Status</th>
+        <th>Geplanter Start</th>
+        <th>Tatsächlicher Start</th>
+        <th>Ende</th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-po>
+      <tr class="po-row" (click)="openOrder(po)">
+        <td>{{ po.printerName ?? '–' }}</td>
+        <td><p-tag [value]="po.status" [severity]="statusSeverity(po.status)" /></td>
+        <td>{{ po.plannedStart | date: 'dd.MM.yyyy HH:mm' }}</td>
+        <td>{{ po.actualStart ? (po.actualStart | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
+        <td>{{ po.actualEnd ? (po.actualEnd | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="5">Keine Produktionsaufträge.</td></tr>
+    </ng-template>
+  </p-table>
+}
+
+<p-dialog header="Neuer Produktionsauftrag" [(visible)]="createDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <div class="form-field">
+    <label>Drucker (optional)</label>
+    <p-select
+      [options]="printers()"
+      [ngModel]="selectedPrinterId()"
+      (ngModelChange)="selectedPrinterId.set($event)"
+      optionLabel="name"
+      optionValue="id"
+      placeholder="Kein Drucker"
+      [showClear]="true"
+      class="w-full"
+    />
+  </div>
+  <div class="form-field">
+    <label>Geplanter Start *</label>
+    <p-datepicker
+      [ngModel]="plannedStart()"
+      (ngModelChange)="plannedStart.set($event)"
+      [showTime]="true"
+      dateFormat="dd.mm.yy"
+      class="w-full"
+    />
+  </div>
+  @if (createError()) {
+    <p-message severity="error">{{ createError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button label="Anlegen" [disabled]="!plannedStart()" [loading]="creating()" (click)="confirmCreate()"></p-button>
+  </div>
+</p-dialog>

@@ -1,0 +1,25 @@
+<section class="similar-section">
+  <h2>Ähnliche Produkte</h2>
+  <div class="similar-grid">
+    @for (p of products(); track p.product_id) {
+      <a class="similar-card" tabindex="0" (click)="selected.emit(p)" (keyup.enter)="selected.emit(p)">
+        <div class="similar-image">
+          @if (image(p)) {
+            <img [src]="image(p)" [alt]="p.name" loading="lazy" />
+          } @else {
+            <i class="pi pi-image"></i>
+          }
+        </div>
+        <span class="similar-name">{{ p.name }}</span>
+        @if (showPrices() && p.minPrice !== null) {
+          <span class="similar-price">
+            @if (p.hasMultiplePrices) {
+              ab
+            }
+            {{ p.minPrice | currency: 'EUR' }}
+          </span>
+        }
+      </a>
+    }
+  </div>
+</section>

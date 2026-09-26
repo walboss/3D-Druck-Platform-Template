@@ -1,0 +1,188 @@
+<button type="button" (click)="goBack()" class="back-link"><i class="pi pi-arrow-left"></i> Zurück zum Katalog</button>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <div class="detail-grid">
+    <p-skeleton height="360px" borderRadius="12px" />
+    <div>
+      <p-skeleton width="60%" height="2rem" />
+      <p-skeleton width="30%" styleClass="mt-2" />
+      <p-skeleton width="100%" height="8rem" styleClass="mt-3" />
+    </div>
+  </div>
+} @else if (product()) {
+  <div class="detail-grid">
+    <div class="gallery-col">
+      @if (product()!.images.length > 0) {
+        <p-galleria
+          [value]="product()!.images"
+          [showThumbnails]="product()!.images.length > 1"
+          [showIndicators]="product()!.images.length > 1"
+          [showIndicatorsOnItem]="true"
+          [showItemNavigators]="product()!.images.length > 1"
+          [circular]="true"
+          [containerStyle]="{ 'max-width': '100%' }"
+          [activeIndex]="galleryIndex()"
+          (activeIndexChange)="galleryIndex.set($event)"
+        >
+          <ng-template #item let-image>
+            <img
+              [src]="image.url"
+              [alt]="product()!.name"
+              class="gallery-image"
+              (touchstart)="onGalleryTouchStart($event)"
+              (touchend)="onGalleryTouchEnd($event)"
+            />
+          </ng-template>
+          <ng-template #thumbnail let-image>
+            <img [src]="image.url" [alt]="product()!.name" class="gallery-thumb" />
+          </ng-template>
+        </p-galleria>
+      } @else {
+        <div class="no-image-box"><i class="pi pi-image"></i></div>
+      }
+    </div>
+
+    <div class="info-col">
+      <div class="title-row">
+        <h1>{{ product()!.name }}</h1>
+        <button
+          type="button"
+          class="like-btn"
+          [class.liked]="product()!.likedByMe"
+          [attr.aria-label]="product()!.likedByMe ? 'Like entfernen' : 'Produkt liken'"
+          (click)="toggleLike()"
+        >
+          <i [class]="product()!.likedByMe ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
+          <span>{{ product()!.likesCount }}</span>
+        </button>
+      </div>
+      @if (product()!.category?.trim()) {
+        <button type="button" class="category-link" (click)="openCategory(product()!.category!)">
+          <i class="pi pi-tag"></i> {{ product()!.category!.trim() }}
+        </button>
+      }
+      @if (product()!.description) {
+        <p class="description">{{ product()!.description }}</p>
+      }
+
+      @if (product()!.variants.length > 1) {
+        <div class="field-block">
+          <label>Größe</label>
+          <div class="variant-buttons">
+            @for (v of product()!.variants; track v.variant_id) {
+              <button
+                type="button"
+                class="chip-btn"
+                [class.selected]="v.variant_id === selectedVariantId()"
+                (click)="onSelectVariant(v.variant_id)"
+              >
+                {{ v.size_label }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @for (pick of colorPickKeys(); track pick.key) {
+        <div class="field-block">
+          <!-- Farbname erscheint, sobald eine Farbe gewählt ist -->
+          <label>{{ pick.label ? 'Farbe (' + pick.label + ')' : 'Farbe' }}@if (colorName(selectedColorByPart()[pick.key]); as name) {: <span class="selected-color-name">{{ name }}</span>}</label>
+          <div class="swatch-row">
+            @for (color of availableColors(); track color.id) {
+              <button
+                type="button"
+                class="swatch"
+                [class.selected]="selectedColorByPart()[pick.key] === color.id"
+                [style.background]="color.hex ?? '#ccc'"
+                [title]="color.name"
+                [attr.aria-label]="color.name"
+                (click)="onSelectColor(pick.key, color.id)"
+              ></button>
+            }
+          </div>
+
+          @if (selectedColorByPart()[pick.key]) {
+            <label class="finish-label">{{ pick.label ? 'Finish (' + pick.label + ')' : 'Finish' }}</label>
+            <div class="finish-row">
+              @for (finish of finishesForColor(selectedColorByPart()[pick.key]); track finish.id) {
+                <button
+                  type="button"
+                  class="chip-btn"
+                  [class.selected]="selectedFinishByPart()[pick.key] === finish.id"
+                  (click)="onSelectFinish(pick.key, finish.id)"
+                >
+                  {{ finish.name }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <div class="field-block">
+        <label>Menge</label>
+        @if (selectedVariant()) {
+          <p-inputnumber
+            [ngModel]="qty()"
+            (ngModelChange)="qty.set($event)"
+            [min]="selectedVariant()!.min_qty"
+            [max]="selectedVariant()!.max_qty"
+            [step]="selectedVariant()!.step_qty"
+            [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            [inputStyle]="{ width: '4.5rem', 'text-align': 'center' }"
+          />
+        }
+      </div>
+
+      @if (showPrices()) {
+        <div class="price-block">
+          @if (selectedVariant()?.final_price != null) {
+            <span class="price">{{ selectedVariant()!.final_price | currency: 'EUR' }}</span>
+            <span class="price-note">pro Stück</span>
+          } @else {
+            <p-message severity="info">Preis wird bei Bestellung final berechnet</p-message>
+          }
+        </div>
+      }
+
+      <div class="action-row">
+        @if (shopEnabled()) {
+          <p-button
+            [label]="addToListLabel()"
+            icon="pi pi-plus"
+            [disabled]="!canAddToCart() || adding()"
+            [loading]="adding()"
+            (click)="addToCart()"
+            styleClass="w-full"
+            class="action-primary"
+          ></p-button>
+          <p-button
+            severity="secondary"
+            [outlined]="true"
+            [label]="goToListLabel()"
+            icon="pi pi-arrow-right"
+            iconPos="right"
+            (click)="goToCart()"
+            styleClass="w-full"
+            class="action-secondary"
+          ></p-button>
+        } @else if (customRequestEnabled()) {
+          <a routerLink="/individualanfrage" pButton label="Anfragen" icon="pi pi-pencil" class="w-full action-primary"></a>
+        }
+      </div>
+      @if (shopEnabled() && missingSelectionHint()) {
+        <p class="selection-hint"><i class="pi pi-info-circle"></i> {{ missingSelectionHint() }}</p>
+      }
+    </div>
+  </div>
+
+  @if (similarProducts().length > 0) {
+    <app-similar-products [products]="similarProducts()" [showPrices]="showPrices()" (selected)="openSimilar($event)" />
+  }
+
+}

@@ -1,0 +1,139 @@
+<h1>{{ checkoutLabel() }}</h1>
+
+@if (loading()) {
+  <p-skeleton height="5rem" borderRadius="12px" styleClass="mb-2" />
+  <p-skeleton height="5rem" borderRadius="12px" />
+} @else {
+  <div class="checkout-grid">
+    <section class="summary-col app-card">
+      <h2>Deine Auswahl</h2>
+      @for (row of rows(); track row.productName + row.sizeLabel) {
+        <div class="summary-row">
+          <span class="summary-name">
+            {{ row.productName }} – {{ row.sizeLabel }}
+            <span class="summary-qty">× {{ row.qty }}</span>
+            @if (row.configLabel) {
+              <span class="summary-config">{{ row.configLabel }}</span>
+            }
+          </span>
+          @if (showPrices()) {
+            <span class="summary-price">{{ (row.finalPrice ?? 0) * row.qty | currency: 'EUR' }}</span>
+          }
+        </div>
+        @if (row.qty < row.minQty || row.qty > row.maxQty || (row.qty - row.minQty) % row.stepQty !== 0) {
+          <p-message severity="error" styleClass="mb-2">
+            {{ qtyInvalidLabel() }}
+          </p-message>
+        }
+      }
+      @if (showPrices()) {
+        <div class="summary-total">
+          <span>Gesamtsumme</span>
+          <span>{{ total() | currency: 'EUR' }}</span>
+        </div>
+      }
+    </section>
+
+    <section class="form-col">
+      <!-- Im Privatmodus ausgeblendet (Entscheidung 2026-09-24) -->
+      @if (showPrices()) {
+        <div class="app-card">
+          <h2>Kennen wir uns schon? <span class="optional">(optional)</span></h2>
+          <p class="hint">
+            Gib Telefon oder E-Mail ein, um zu prüfen, ob wir dich schon kennen. Deine Daten gibst du
+            unten trotzdem selbst ein.
+          </p>
+          <div class="search-row">
+            <input type="tel" pInputText placeholder="Telefon" [(ngModel)]="searchPhone" />
+            <input type="email" pInputText placeholder="E-Mail" [(ngModel)]="searchEmail" />
+            <p-button label="Prüfen" [outlined]="true" [loading]="searching()" [disabled]="!searchTurnstileToken()" (click)="runCustomerSearch()"></p-button>
+          </div>
+          <div class="turnstile-row">
+            <app-turnstile-widget #searchTurnstile (verified)="onSearchTurnstileVerified($event)" (expired)="onSearchTurnstileExpired()" />
+          </div>
+          @if (searchError()) {
+            <p-message severity="warn" styleClass="mt-2">Prüfung gerade nicht möglich. Bitte kurz warten und erneut versuchen.</p-message>
+          }
+          @if (searchValidationError()) {
+            <p-message severity="warn" styleClass="mt-2">Bitte Telefon oder E-Mail eingeben.</p-message>
+          }
+          @if (searchDone() && customerFound()) {
+            <p-message severity="success" styleClass="mt-2">Willkommen zurück!</p-message>
+          }
+          @if (searchDone() && !customerFound()) {
+            <p-message severity="info" styleClass="mt-2">Du bist uns noch nicht bekannt.</p-message>
+          }
+        </div>
+      }
+
+      <div class="app-card" [class.mt-3]="showPrices()">
+        <h2>Deine Daten</h2>
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="firstName">Vorname *</label>
+            <input id="firstName" type="text" pInputText autocomplete="given-name" [(ngModel)]="firstName" />
+          </div>
+          <div class="form-field">
+            <label for="lastName">Nachname{{ lastNameRequired() ? ' *' : '' }}</label>
+            <input id="lastName" type="text" pInputText autocomplete="family-name" [(ngModel)]="lastName" />
+          </div>
+          <div class="form-field">
+            <label for="phone">Telefon</label>
+            <input id="phone" type="tel" pInputText autocomplete="tel" [(ngModel)]="phone" />
+          </div>
+          <div class="form-field">
+            <label for="email">E-Mail</label>
+            <input id="email" type="email" pInputText autocomplete="email" [(ngModel)]="email" />
+          </div>
+        </div>
+        <p class="hint">
+          @if (contactRequired()) {
+            Telefon oder E-Mail muss angegeben werden.
+          } @else {
+            Telefon oder E-Mail <span class="optional">(optional)</span> — hilft uns, dich bei Rückfragen zu erreichen.
+          }
+        </p>
+
+        <div class="form-field comment-field">
+          <label for="customerMessage">Anmerkung <span class="optional">(optional)</span></label>
+          <textarea
+            id="customerMessage"
+            pTextarea
+            rows="3"
+            [maxlength]="messageMaxLength"
+            [ngModel]="customerMessage()"
+            (ngModelChange)="customerMessage.set($event)"
+            placeholder="z. B. Wunschtermin, Geschenk, besondere Wünsche"
+          ></textarea>
+          <small class="char-count">{{ customerMessage().length }}/{{ messageMaxLength }}</small>
+        </div>
+
+        <div class="turnstile-row">
+          <app-turnstile-widget (verified)="onTurnstileVerified($event)" (expired)="onTurnstileExpired()" />
+        </div>
+
+        @if (error()) {
+          <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+        }
+
+        @if (legalPagesEnabled) {
+          <p class="privacy-hint">
+            Mit dem Absenden speichern wir deine Angaben zur Bearbeitung – mehr dazu in der
+            <a routerLink="/datenschutz">Datenschutzerklärung</a>.
+          </p>
+        }
+
+        <p-button
+          [label]="submitOrderLabel()"
+          icon="pi pi-check"
+          size="large"
+          [disabled]="!canSubmit()"
+          [loading]="submitting()"
+          (click)="submitOrder()"
+          styleClass="w-full"
+          class="submit-btn"
+        ></p-button>
+      </div>
+    </section>
+  </div>
+}

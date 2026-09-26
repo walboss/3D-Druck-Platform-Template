@@ -1,0 +1,57 @@
+@if (loading()) {
+  <p-skeleton height="6rem" borderRadius="12px" />
+} @else if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (order()) {
+  <div class="tracking-wrap">
+    <div class="page-head">
+      <h1>Status</h1>
+      <div class="order-number">
+        @if (showPrices()) {
+          <span>Bestellnummer <strong>{{ order()!.order_number }}</strong></span>
+        }
+        <p-tag [value]="orderStatusLabel(order()!.status)" [severity]="orderStatusSeverity(order()!.status)" />
+      </div>
+    </div>
+
+    <div class="items-list">
+      @for (item of order()!.items; track item.description) {
+        <div class="tracking-item app-card">
+          <div class="item-header">
+            <span class="item-name">
+              {{ item.description }}
+              <span class="item-qty">× {{ item.qty }}</span>
+            </span>
+            <p-tag [value]="stepLabel(item.status)" [severity]="itemStatusSeverity(item.status)" />
+          </div>
+
+          @if (item.status === 'Storniert') {
+            <p-message severity="error" styleClass="mt-2">Diese Position wurde storniert.</p-message>
+          } @else {
+            <div class="step-row">
+              @for (step of stepsFor(item.status); track step; let i = $index) {
+                <div
+                  class="step"
+                  [class.done]="i < stepIndex(item.status)"
+                  [class.current]="i === stepIndex(item.status)"
+                >
+                  <div class="step-dot">
+                    @if (i < stepIndex(item.status)) {
+                      <i class="pi pi-check"></i>
+                    }
+                  </div>
+                  <span class="step-label">{{ stepLabel(step) }}</span>
+                </div>
+              }
+            </div>
+            @if (item.status === 'WartetAufMaterial') {
+              <p-message severity="info" styleClass="mt-2">
+                Wartet auf Materialeingang, wird automatisch bearbeitet.
+              </p-message>
+            }
+          }
+        </div>
+      }
+    </div>
+  </div>
+}

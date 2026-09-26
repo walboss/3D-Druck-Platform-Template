@@ -1,0 +1,102 @@
+<div class="page-header">
+  <h1>Drucker</h1>
+  <p-button label="Neuer Drucker" icon="pi pi-plus" (click)="openCreateDialog()"></p-button>
+</div>
+<p class="hint">
+  Bestätigte Bestellungen landen automatisch auf dem Standard-Drucker (<i class="pi pi-star-fill"></i>).
+  Beim manuellen Anlegen eines Auftrags ist jeder aktive Drucker wählbar. Drucker werden nicht gelöscht,
+  sondern deaktiviert — den Standard-Drucker erst deaktivieren, wenn ein anderer Standard ist.
+</p>
+
+@if (error()) {
+  <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+}
+
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-table [value]="printers()" styleClass="stack-on-mobile">
+    <ng-template #header>
+      <tr>
+        <th>Standard</th>
+        <th>Name</th>
+        <th>Modell</th>
+        <th>Leistung</th>
+        <th>Maschinenstundensatz</th>
+        <th>Aktiv</th>
+        <th></th>
+      </tr>
+    </ng-template>
+    <ng-template #body let-printer>
+      <tr [class.inactive]="!printer.active">
+        <td data-label="Standard">
+          <p-button
+            [text]="true"
+            [rounded]="true"
+            [icon]="printer.is_default ? 'pi pi-star-fill' : 'pi pi-star'"
+            [class.is-default]="printer.is_default"
+            [disabled]="!printer.active || busyId() !== null"
+            [loading]="busyId() === printer.id"
+            [pTooltip]="printer.is_default ? 'Standard-Drucker' : 'Als Standard setzen'"
+            [attr.aria-label]="printer.is_default ? 'Standard-Drucker' : 'Als Standard setzen'"
+            (click)="setDefault(printer)"
+          ></p-button>
+        </td>
+        <td data-label="Name">
+          <strong>{{ printer.name }}</strong>
+          @if (printer.is_default) {
+            <span class="default-badge">Standard</span>
+          }
+        </td>
+        <td data-label="Modell">{{ printer.model }}</td>
+        <td data-label="Leistung">{{ formatNumber(printer.power_consumption_w, 0) }} W</td>
+        <td data-label="Maschinenstundensatz">{{ formatNumber(printer.machine_hour_rate, 2) }} €/h</td>
+        <td data-label="Aktiv">
+          <p-toggleswitch
+            [ngModel]="printer.active"
+            (ngModelChange)="toggleActive(printer, $event)"
+          />
+        </td>
+        <td class="col-actions">
+          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" aria-label="Bearbeiten" (click)="openEditDialog(printer)"></p-button>
+        </td>
+      </tr>
+    </ng-template>
+    <ng-template #emptymessage>
+      <tr><td colspan="7">Keine Drucker vorhanden.</td></tr>
+    </ng-template>
+  </p-table>
+}
+
+<p-dialog
+  [header]="editingId() ? 'Drucker bearbeiten' : 'Neuen Drucker anlegen'"
+  [(visible)]="dialogVisible"
+  [modal]="true"
+  [style]="{ width: '420px' }"
+  [breakpoints]="{ '575px': '95vw' }"
+>
+  <div class="form-field">
+    <label for="printerName">Name *</label>
+    <input id="printerName" type="text" pInputText placeholder="z. B. SV07" [ngModel]="formName()" (ngModelChange)="formName.set($event)" class="w-full" />
+  </div>
+  <div class="form-field">
+    <label for="printerModel">Modell *</label>
+    <input id="printerModel" type="text" pInputText placeholder="z. B. Sovol SV07" [ngModel]="formModel()" (ngModelChange)="formModel.set($event)" class="w-full" />
+  </div>
+  <div class="form-field">
+    <label for="printerPower">Leistung (W) *</label>
+    <p-inputnumber inputId="printerPower" [ngModel]="formPower()" (ngModelChange)="formPower.set($event)" [min]="0" [maxFractionDigits]="0" suffix=" W" locale="de-DE" styleClass="w-full" />
+  </div>
+  <div class="form-field">
+    <label for="printerRate">Maschinenstundensatz (€/h) *</label>
+    <p-inputnumber inputId="printerRate" [ngModel]="formRate()" (ngModelChange)="formRate.set($event)" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2" suffix=" €/h" locale="de-DE" styleClass="w-full" />
+  </div>
+  <p class="hint">Hinweis: Die Preiskalkulation nutzt weiterhin den Maschinenstundensatz aus den Settings.</p>
+  @if (dialogError()) {
+    <p-message severity="error">{{ dialogError() }}</p-message>
+  }
+  <div class="dialog-actions">
+    <p-button [label]="editingId() ? 'Speichern' : 'Anlegen'" [disabled]="!canSave()" [loading]="saving()" (click)="save()"></p-button>
+  </div>
+</p-dialog>

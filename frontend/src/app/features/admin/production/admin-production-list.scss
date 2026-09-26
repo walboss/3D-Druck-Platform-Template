@@ -1,0 +1,36 @@
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.po-row {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--p-surface-50, #f8f9fa);
+  }
+}
+
+.form-field {
+  margin-bottom: 1rem;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}

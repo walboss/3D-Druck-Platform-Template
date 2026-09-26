@@ -1,0 +1,225 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* ---------- Header ---------- */
+.storefront-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--app-header-bg);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--app-border);
+  padding: 0 var(--app-gutter);
+}
+
+.storefront-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: var(--app-header-height);
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.nav-links {
+  display: none;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--app-text-muted);
+  font-weight: 500;
+  position: relative;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--p-surface-100, #f4f4f5);
+    color: var(--app-text);
+  }
+
+  &.active {
+    background: var(--p-primary-50);
+    color: var(--p-primary-700);
+  }
+
+  i {
+    font-size: 0.95rem;
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.theme-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  text-decoration: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+
+  &:hover,
+  &:active {
+    background: var(--app-surface-hover);
+  }
+}
+
+.cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--p-primary-color);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.nav-link .cart-badge {
+  position: static;
+  margin-left: 0.15rem;
+}
+
+@media (min-width: 768px) {
+  .nav-links {
+    display: flex;
+  }
+}
+
+/* ---------- Content ---------- */
+.storefront-content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+  padding: 1.25rem var(--app-gutter) 2rem;
+}
+
+@media (min-width: 768px) {
+  .storefront-content {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+  }
+}
+
+/* ---------- Footer ---------- */
+.storefront-footer {
+  text-align: center;
+  padding: 1.25rem var(--app-gutter);
+  color: var(--app-text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--app-border);
+
+  p {
+    margin: 0;
+  }
+
+  .footer-sep {
+    margin: 0 0.5rem;
+  }
+
+  .footer-link {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .footer-legal {
+    margin-top: 0.35rem;
+  }
+
+  .footer-privacy {
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    opacity: 0.85;
+  }
+}
+
+/* ---------- Bottom-Navigation (nur Mobile) ---------- */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  height: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--app-header-bg);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-top: 1px solid var(--app-border);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  text-decoration: none;
+  color: var(--app-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+
+  &.active {
+    color: var(--p-primary-color);
+  }
+}
+
+.bottom-nav-icon {
+  position: relative;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+@media (max-width: 767px) {
+  :host {
+    padding-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+}
+
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none;
+  }
+}

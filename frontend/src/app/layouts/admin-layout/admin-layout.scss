@@ -1,0 +1,239 @@
+$sidebar-width: 250px;
+$topbar-height: 56px;
+
+.admin-shell {
+  min-height: 100dvh;
+  background: var(--app-bg);
+}
+
+/* ---------- Mobile Top-Bar ---------- */
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: $topbar-height;
+  padding: 0 0.5rem 0 0.25rem;
+  background: var(--p-surface-900, #1e1e2d);
+  color: #fff;
+}
+
+.menu-btn,
+.close-btn,
+.topbar-shop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  text-decoration: none;
+
+  &:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.topbar-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1.05rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Sidebar ---------- */
+.admin-sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 130;
+  width: min($sidebar-width, 85vw);
+  background: var(--p-surface-900, #1e1e2d);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0 calc(0.75rem + env(safe-area-inset-bottom));
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  overflow-y: auto;
+}
+
+.admin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(17, 24, 39, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.menu-open {
+  .admin-sidebar {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.3);
+  }
+
+  .admin-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  padding: 0.5rem 1rem 1rem 1.25rem;
+
+  .close-btn {
+    margin-left: auto;
+  }
+}
+
+.brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--p-primary-color);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 0.6rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.12s ease, color 0.12s ease;
+
+  i {
+    width: 1.1rem;
+    text-align: center;
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #fff;
+  }
+
+  &.active {
+    background: var(--p-primary-color);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.nav-group-title {
+  margin: 0.9rem 0 0.2rem;
+  padding: 0 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.nav-item-muted {
+  font-size: 0.9rem;
+}
+
+.theme-toggle-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nav-badge {
+  margin-left: auto;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--p-primary-color, #0d9488);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1rem 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.logout-btn {
+  display: block;
+  padding: 0 0.15rem;
+}
+
+/* ---------- Content ---------- */
+.admin-content {
+  padding: 1rem var(--app-gutter) 2rem;
+  min-width: 0;
+}
+
+/* ---------- Desktop: feste Sidebar, keine Top-Bar ---------- */
+@media (min-width: 1024px) {
+  .admin-topbar,
+  .admin-backdrop,
+  .close-btn {
+    display: none;
+  }
+
+  .admin-shell {
+    display: flex;
+  }
+
+  .admin-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    width: $sidebar-width;
+    flex-shrink: 0;
+    transform: none;
+    transition: none;
+    box-shadow: none !important;
+  }
+
+  .admin-content {
+    flex: 1;
+    padding: 1.75rem 2rem 3rem;
+    max-width: 1400px;
+  }
+}

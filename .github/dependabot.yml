@@ -1,0 +1,38 @@
+# Automatische Update-PRs (nur PRs, nichts wird automatisch gemergt).
+# Minor/Patch je Verzeichnis in einer Sammel-PR, Major-Updates einzeln.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /cloudflare-worker
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      worker-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      root-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

@@ -1,0 +1,323 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück" (click)="back()"></p-button>
+
+@if (loading()) {
+  <p-skeleton height="6rem" styleClass="mt-2" />
+} @else {
+  <h1 class="mt-2">{{ isNew() ? 'Neues Produkt' : name() }}</h1>
+
+  @if (error()) {
+    <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
+  }
+  @if (!isNew() && variants().length === 0) {
+    <p-message severity="warn" styleClass="mb-2">
+      Ohne aktive Variante erscheint das Produkt nicht im Katalog — bitte im Tab „Varianten" eine anlegen.
+    </p-message>
+  }
+
+  <p-tabs value="0">
+    <p-tablist>
+      <p-tab value="0">Stammdaten</p-tab>
+      @if (!isNew()) {
+        <p-tab value="1">Varianten</p-tab>
+        @if (isMulticolor()) {
+          <p-tab value="2">Teile</p-tab>
+        }
+      }
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="0">
+        @if (sourceMakerworldUrl()) {
+          <p-message severity="secondary" styleClass="mb-2">
+            Importiert von MakerWorld:
+            <a [href]="sourceMakerworldUrl()" target="_blank" rel="noopener">{{ sourceMakerworldUrl() }}</a>
+            @if (sourceMakerworldTitle()) {
+              — Originaltitel „{{ sourceMakerworldTitle() }}"
+            }
+          </p-message>
+        }
+        <div class="form-field">
+          <label>MakerWorld-Link (optional)</label>
+          <div class="makerworld-row">
+            <input type="text" pInputText [ngModel]="productMakerworldUrl()" (ngModelChange)="productMakerworldUrl.set($event)" placeholder="https://makerworld.com/en/models/..." class="w-full" />
+            <p-button label="Auslesen" severity="secondary" [loading]="productMakerworldImporting()" [disabled]="!productMakerworldUrl().trim()" (click)="importProductFromMakerWorld()"></p-button>
+          </div>
+          @if (productMakerworldError()) {
+            <p-message severity="error" styleClass="mt-2">{{ productMakerworldError() }}</p-message>
+          }
+          @if (productMakerworldHint()) {
+            <p-message severity="info" styleClass="mt-2">{{ productMakerworldHint() }}</p-message>
+          }
+          @if (plateMapping(); as mapping) {
+            <app-makerworld-plate-mapping
+              [plates]="productMakerworldImport()?.plates ?? []"
+              [allowPerPlate]="false"
+              [state]="mapping"
+              (stateChange)="plateMapping.set($event)"
+            />
+          }
+        </div>
+        <div class="form-field">
+          <label>Name *</label>
+          <input type="text" pInputText [(ngModel)]="name" class="w-full" />
+        </div>
+        @if (showDescription) {
+          <div class="form-field">
+            <label>Beschreibung</label>
+            <textarea pTextarea rows="3" [(ngModel)]="description" class="w-full"></textarea>
+          </div>
+        }
+        <div class="form-field">
+          <label>Kategorie</label>
+          <p-autocomplete
+            [(ngModel)]="category"
+            [suggestions]="categorySuggestions()"
+            (completeMethod)="searchCategories($event)"
+            [dropdown]="true"
+            [minQueryLength]="0"
+            [completeOnFocus]="true"
+            inputStyleClass="w-full"
+            styleClass="w-full"
+            placeholder="Auswählen oder neue Kategorie eintippen"
+          />
+          <small class="field-hint">Freitext: neue Kategorie einfach eintippen, Enter übernimmt.</small>
+        </div>
+        <div class="form-field toggle-field">
+          <label>Aktiv (steuert Sichtbarkeit im Katalog)</label>
+          <p-toggleswitch [(ngModel)]="active" />
+        </div>
+        <div class="form-field toggle-field">
+          <label>Mehrfarbig (Farbe je Teil statt für ganzes Produkt)</label>
+          <p-toggleswitch [(ngModel)]="isMulticolor" />
+        </div>
+
+        <div class="form-field">
+          <label>Tags</label>
+          <div class="tag-list">
+            @for (tag of tags(); track tag) {
+              <span class="tag-pill">
+                {{ tag }}
+                <i class="pi pi-times" (click)="removeTag(tag)"></i>
+              </span>
+            }
+          </div>
+          <div class="tag-input-row">
+            <input type="text" pInputText [(ngModel)]="newTag" (keyup.enter)="addTag()" placeholder="Neuer Tag" />
+            <p-button severity="secondary" label="Hinzufügen" (click)="addTag()"></p-button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>Bilder</label>
+          @for (image of images(); track $index) {
+            <div class="image-row">
+              <input
+                type="text"
+                pInputText
+                [value]="image.url"
+                (input)="updateImageUrl($index, $any($event.target).value)"
+                placeholder="Bild-URL"
+                class="image-url"
+              />
+              <p-select
+                [options]="[{ label: 'Externer Link', value: 'extern_link' }, { label: 'Eigenes Hosting', value: 'eigenes_hosting' }]"
+                [ngModel]="image.source_type"
+                (ngModelChange)="updateImageSourceType($index, $event)"
+                optionLabel="label"
+                optionValue="value"
+              />
+              <p-button severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Bild entfernen" (click)="removeImageRow($index)"></p-button>
+            </div>
+          }
+          <p-button severity="secondary" label="Bild hinzufügen" icon="pi pi-plus" (click)="addImageRow()"></p-button>
+        </div>
+
+        @if (productMakerworldImages().length > 0) {
+          <div class="form-field makerworld-images">
+            <label>Bilder-Vorschläge aus MakerWorld</label>
+            <p class="hint">Nur per Klick auf „Übernehmen" werden Bilder ins Produkt eingetragen (externer Link).</p>
+            <div class="makerworld-image-grid">
+              @for (url of productMakerworldImages(); track url) {
+                <div class="makerworld-image-card">
+                  <img [src]="url" alt="Bildvorschlag aus MakerWorld" loading="lazy" />
+                  <div class="makerworld-image-actions">
+                    @if (isMakerworldImageAdopted(url)) {
+                      <p-button size="small" label="Übernommen" icon="pi pi-check" [disabled]="true"></p-button>
+                    } @else {
+                      <p-button size="small" label="Übernehmen" icon="pi pi-plus" (click)="adoptMakerworldImage(url)"></p-button>
+                    }
+                    <p-button size="small" severity="secondary" [text]="true" label="Ablehnen" (click)="dismissMakerworldImage(url)"></p-button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <p-button label="Speichern" icon="pi pi-save" [loading]="saving()" (click)="saveProduct()" class="mt-3"></p-button>
+      </p-tabpanel>
+
+      @if (!isNew()) {
+        <p-tabpanel value="1">
+          <p-button label="Neue Variante" icon="pi pi-plus" (click)="openNewVariantDialog()" class="mb-3"></p-button>
+          <div class="variant-list">
+            @for (variant of variants(); track variant.id) {
+              <div class="variant-row">
+                <div class="variant-main">
+                  <strong>{{ variant.sizeLabel }}</strong>
+                  <span class="variant-meta">
+                    {{ variant.weightG }} g · Menge {{ variant.minQty }}–{{ variant.maxQty }} (Schritt
+                    {{ variant.stepQty }}) · {{ variant.active ? 'aktiv' : 'inaktiv' }} ·
+                    @if (variant.finalPrice !== null && variant.finalPrice !== undefined) {
+                      {{ variant.finalPrice | number: '1.2-2' }} €
+                    } @else {
+                      keine Kalkulation
+                    }
+                  </span>
+                </div>
+                <div class="variant-actions">
+                  <p-button size="small" severity="secondary" label="Bearbeiten" (click)="openEditVariantDialog(variant)"></p-button>
+                  <p-button size="small" severity="secondary" label="Kalkulation" (click)="openCalcDialog(variant)"></p-button>
+                </div>
+              </div>
+            }
+          </div>
+        </p-tabpanel>
+
+        @if (isMulticolor()) {
+          <p-tabpanel value="2">
+            <div class="part-list">
+              @for (part of parts(); track part.id) {
+                <div class="option-row">{{ part.sortOrder }}. {{ part.name }}</div>
+              }
+            </div>
+            <div class="add-option-row mt-2">
+              <input type="text" pInputText [(ngModel)]="newPartName" placeholder="Name des Teils (z. B. Kopf)" />
+              <p-button label="Hinzufügen" [disabled]="!newPartName().trim()" (click)="addPart()"></p-button>
+            </div>
+          </p-tabpanel>
+        }
+      }
+    </p-tabpanels>
+  </p-tabs>
+}
+
+<!-- Varianten-Dialog -->
+<p-dialog header="Variante" [(visible)]="variantDialogVisible" [modal]="true" [style]="{ width: '480px' }">
+  <div class="form-field">
+    <label>Größenbezeichnung *</label>
+    <input type="text" pInputText [ngModel]="variantForm().sizeLabel" (ngModelChange)="variantForm.set({ ...variantForm(), sizeLabel: $event })" class="w-full" />
+  </div>
+  <div class="form-field">
+    <label>MakerWorld-Link (optional)</label>
+    <div class="makerworld-row">
+      <input type="text" pInputText [ngModel]="makerworldUrl()" (ngModelChange)="makerworldUrl.set($event)" placeholder="https://makerworld.com/en/models/..." class="w-full" />
+      <p-button label="Auslesen" severity="secondary" [loading]="makerworldImporting()" [disabled]="!makerworldUrl().trim()" (click)="importFromMakerWorld()"></p-button>
+    </div>
+    @if (makerworldError()) {
+      <p-message severity="error" styleClass="mt-2">{{ makerworldError() }}</p-message>
+    }
+    @if (makerworldHint()) {
+      <p-message severity="info" styleClass="mt-2">{{ makerworldHint() }}</p-message>
+    }
+  </div>
+  <div class="grid-2">
+    <div class="form-field">
+      <label>Gewicht (g)</label>
+      <p-inputnumber [ngModel]="variantForm().weightG" (ngModelChange)="variantForm.set({ ...variantForm(), weightG: $event })" />
+    </div>
+    <div class="form-field">
+      <label>Druckzeit (min)</label>
+      <p-inputnumber [ngModel]="variantForm().printTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), printTimeMin: $event })" />
+    </div>
+    <div class="form-field">
+      <label>Arbeitszeit (min)</label>
+      <p-inputnumber [ngModel]="variantForm().workTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), workTimeMin: $event })" />
+    </div>
+    <div class="form-field">
+      <label>Materialbedarf (g)</label>
+      <p-inputnumber [ngModel]="variantForm().materialNeedG" (ngModelChange)="variantForm.set({ ...variantForm(), materialNeedG: $event })" />
+    </div>
+    <div class="form-field">
+      <label>Min. Menge</label>
+      <p-inputnumber [ngModel]="variantForm().minQty" (ngModelChange)="variantForm.set({ ...variantForm(), minQty: $event })" [min]="1" />
+    </div>
+    <div class="form-field">
+      <label>Max. Menge</label>
+      <p-inputnumber [ngModel]="variantForm().maxQty" (ngModelChange)="variantForm.set({ ...variantForm(), maxQty: $event })" [min]="1" />
+    </div>
+    <div class="form-field">
+      <label>Schrittweite</label>
+      <p-inputnumber [ngModel]="variantForm().stepQty" (ngModelChange)="variantForm.set({ ...variantForm(), stepQty: $event })" [min]="1" />
+    </div>
+    <div class="form-field toggle-field">
+      <label>Aktiv</label>
+      <p-toggleswitch [ngModel]="variantForm().active" (ngModelChange)="variantForm.set({ ...variantForm(), active: $event })" />
+    </div>
+  </div>
+  <div class="dialog-actions">
+    <p-button label="Speichern" [loading]="saving()" (click)="saveVariant()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Kalkulations-Dialog -->
+<p-dialog header="Kalkulationsversion" [(visible)]="calcDialogVisible" [modal]="true" [style]="{ width: '520px' }">
+  @if (calcCurrentVersion()) {
+    <p class="hint">
+      Aktuelle Version #{{ calcCurrentVersion()!.versionNo }}, Endpreis
+      {{ calcCurrentVersion()!.finalPrice | number: '1.2-2' }} €. Eine neue Version ersetzt diese als
+      "aktuell gültig".
+    </p>
+  } @else {
+    <p class="hint">Noch keine Kalkulation vorhanden. Erste Version anlegen.</p>
+  }
+
+  <div class="grid-2">
+    <div class="form-field">
+      <label>Filamentkosten</label>
+      <p-inputnumber [ngModel]="calcCosts().filament_cost" (ngModelChange)="updateCalcCost('filament_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Energiekosten</label>
+      <p-inputnumber [ngModel]="calcCosts().energy_cost" (ngModelChange)="updateCalcCost('energy_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Maschinenkosten</label>
+      <p-inputnumber [ngModel]="calcCosts().machine_cost" (ngModelChange)="updateCalcCost('machine_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Arbeitskosten</label>
+      <p-inputnumber [ngModel]="calcCosts().labor_cost" (ngModelChange)="updateCalcCost('labor_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Verpackungskosten</label>
+      <p-inputnumber [ngModel]="calcCosts().packaging_cost" (ngModelChange)="updateCalcCost('packaging_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Lizenzkosten</label>
+      <p-inputnumber [ngModel]="calcCosts().license_cost" (ngModelChange)="updateCalcCost('license_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Ausschusszuschlag</label>
+      <p-inputnumber [ngModel]="calcCosts().scrap_allowance" (ngModelChange)="updateCalcCost('scrap_allowance', $event)" mode="currency" currency="EUR" />
+    </div>
+    <div class="form-field">
+      <label>Sonstige Kosten</label>
+      <p-inputnumber [ngModel]="calcCosts().other_cost" (ngModelChange)="updateCalcCost('other_cost', $event)" mode="currency" currency="EUR" />
+    </div>
+  </div>
+
+  <div class="form-field">
+    <label>Marge (%)</label>
+    <p-inputnumber [ngModel]="calcMargin()" (ngModelChange)="calcMargin.set($event)" suffix=" %" />
+  </div>
+  <div class="form-field">
+    <label>Grund *</label>
+    <p-select [options]="calcReasonOptions" [ngModel]="calcReason()" (ngModelChange)="calcReason.set($event)" optionLabel="label" optionValue="value" class="w-full" />
+  </div>
+
+  <p class="hint">Endpreis wird automatisch berechnet und auf .49/.99 aufgerundet.</p>
+
+  <div class="dialog-actions">
+    <p-button label="Neue Version anlegen" [loading]="saving()" (click)="saveCalculationVersion()"></p-button>
+  </div>
+</p-dialog>

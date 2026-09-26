@@ -1,0 +1,56 @@
+:host {
+  display: contents;
+}
+
+// Kategorie-Leiste (sticky direkt unter dem Storefront-Header). Negative
+// Seitenränder + Padding: Leiste reicht bis an den Rand von .storefront-content.
+.category-bar {
+  position: sticky;
+  top: var(--app-header-height);
+  z-index: 90;
+  margin: -0.25rem calc(-1 * var(--app-gutter)) 1.25rem;
+  padding: 0 var(--app-gutter);
+  background: var(--app-bg);
+  border-bottom: 1px solid var(--app-border);
+}
+
+.category-bar-track {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.category-tab {
+  flex: 0 0 auto;
+  padding: 0.7rem 0 0.6rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--app-text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--app-text);
+  }
+
+  &.active {
+    color: var(--p-primary-color);
+    border-bottom-color: var(--p-primary-color);
+    font-weight: 600;
+  }
+
+  &.season:not(.active)::after {
+    content: ' •';
+    color: var(--p-primary-color);
+  }
+}

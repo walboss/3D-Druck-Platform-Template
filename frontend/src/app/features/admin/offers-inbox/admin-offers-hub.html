@@ -1,0 +1,86 @@
+<h1>Angebote &amp; Individualanfragen</h1>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+} @else if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  <p-tabs value="0">
+    <p-tablist>
+      <p-tab value="0">Individualanfragen</p-tab>
+      <p-tab value="1">Angebote</p-tab>
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="0">
+        <p-table [value]="requests()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+          <ng-template #header>
+            <tr>
+              <th>Kunde</th>
+              <th>Größe</th>
+              <th>Menge</th>
+              <th>Status</th>
+              <th>Erstellt</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-request>
+            <tr class="clickable-row" (click)="openRequest(request)">
+              <td>{{ request.customerName }}</td>
+              <td>{{ request.desiredSize }}</td>
+              <td>{{ request.qty }}</td>
+              <td><p-tag [value]="request.status" [severity]="requestStatusSeverity(request.status)" /></td>
+              <td>{{ request.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="5">Keine Individualanfragen.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+
+      <p-tabpanel value="1">
+        <p-table [value]="offers()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+          <ng-template #header>
+            <tr>
+              <th>Kunde</th>
+              <th>Status</th>
+              <th>Gültig bis</th>
+              <th>Link</th>
+              <th>Aktionen</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-offer>
+            <tr>
+              <td>{{ offer.customerName }}</td>
+              <td><p-tag [value]="offer.status" [severity]="offerStatusSeverity(offer.status)" /></td>
+              <td>{{ offer.validUntil | date: 'dd.MM.yyyy' }}</td>
+              <td>
+                <p-button size="small" severity="secondary" [text]="true" icon="pi pi-copy" label="Link kopieren" (click)="copyOfferLink(offer.secureToken)"></p-button>
+              </td>
+              <td>
+                @if (offer.status === 'offen') {
+                  <p-button size="small" severity="danger" [text]="true" label="Ablehnen" (click)="openRejectDialog(offer.id)"></p-button>
+                  <p-button size="small" severity="danger" [text]="true" label="Widerrufen" (click)="openRevokeDialog(offer.id)"></p-button>
+                }
+                @if (offer.status === 'abgelaufen' || offer.status === 'abgelehnt') {
+                  <p-button size="small" severity="secondary" label="Neues Angebot zur selben Anfrage" (click)="newOfferForRequest(offer.customRequestId)"></p-button>
+                }
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="5">Keine Angebote.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+}
+
+<p-dialog [header]="rejectIsRevoke() ? 'Angebot widerrufen' : 'Angebot ablehnen'" [(visible)]="rejectDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <label>Grund *</label>
+  <textarea pTextarea rows="3" [(ngModel)]="rejectReason" class="w-full"></textarea>
+  <div class="dialog-actions">
+    <p-button severity="danger" [label]="rejectIsRevoke() ? 'Widerrufen' : 'Ablehnen'" [disabled]="!rejectReason().trim()" [loading]="actionRunning()" (click)="confirmRejectOrRevoke()"></p-button>
+  </div>
+</p-dialog>

@@ -1,0 +1,86 @@
+.hint {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.9rem;
+  max-width: 720px;
+}
+
+.empty {
+  color: var(--p-text-muted-color, #6c757d);
+}
+
+.suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.suggestion-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  border: 1px solid var(--p-content-border-color, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  background: var(--p-surface-0, #fff);
+}
+
+.suggestion-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.suggestion-link {
+  font-weight: 600;
+
+  i {
+    font-size: 0.7rem;
+  }
+}
+
+.suggestion-date {
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.85rem;
+  margin-left: 0.75rem;
+}
+
+.suggestion-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color, #6c757d);
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-field {
+  margin: 0.75rem 0;
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+}
+
+.w-full {
+  width: 100%;
+}
+
+.dialog-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}

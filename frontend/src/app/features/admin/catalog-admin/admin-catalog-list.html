@@ -1,0 +1,150 @@
+<div class="header-row">
+  <h1>Katalogpflege</h1>
+  <div class="header-actions">
+    <p-button severity="secondary" label="Farben &amp; Finishes" icon="pi pi-palette" (click)="openMasterData()"></p-button>
+    <p-button severity="secondary" label="Saison-Kategorien" icon="pi pi-calendar" (click)="openSeasons()"></p-button>
+    <p-button severity="secondary" label="MakerWorld-Import" icon="pi pi-download" (click)="openImport()"></p-button>
+    <p-button severity="secondary" [label]="'Vorschläge' + (openSuggestions() > 0 ? ' (' + openSuggestions() + ')' : '')" icon="pi pi-lightbulb" (click)="openSuggestions_()"></p-button>
+    <p-button label="Neues Produkt" icon="pi pi-plus" (click)="createProduct()"></p-button>
+  </div>
+</div>
+
+@if (error()) {
+  <p-message severity="error">{{ error() }}</p-message>
+}
+@if (loading()) {
+  <p-skeleton height="3rem" styleClass="mb-2" />
+  <p-skeleton height="3rem" />
+} @else {
+  @if (withoutCategoryCount() > 0 || onlyWithoutCategory()) {
+    <div class="category-filter-row">
+      <p-button
+        size="small"
+        [outlined]="!onlyWithoutCategory()"
+        [severity]="onlyWithoutCategory() ? 'warn' : 'secondary'"
+        icon="pi pi-tag"
+        [label]="'Nur ohne Kategorie (' + withoutCategoryCount() + ')'"
+        (click)="onlyWithoutCategory.set(!onlyWithoutCategory())"
+      ></p-button>
+    </div>
+  }
+  @if (selectedProducts().length > 0) {
+    <div class="bulk-bar">
+      <span>{{ selectedProducts().length }} ausgewählt</span>
+      <p-button size="small" icon="pi pi-tag" label="Kategorie setzen" (click)="openBulkCategoryDialog()"></p-button>
+      <p-button size="small" severity="secondary" [text]="true" label="Auswahl aufheben" (click)="selectedProducts.set([])"></p-button>
+    </div>
+  }
+  <p-tabs value="0">
+    <p-tablist>
+      <p-tab value="0">Aktiv</p-tab>
+      <p-tab value="1">Ausgeblendet{{ hiddenProducts().length > 0 ? ' (' + hiddenProducts().length + ')' : '' }}</p-tab>
+    </p-tablist>
+    <p-tabpanels>
+      <p-tabpanel value="0">
+        <p-table [value]="activeProducts()" [rows]="20" [paginator]="true" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
+          <ng-template #header>
+            <tr>
+              <th class="select-col"><p-table-header-checkbox /></th>
+              <th>Name</th>
+              <th>Kategorie</th>
+              <th>Mehrfarbig</th>
+              <th>Preis</th>
+              <th>Laufzeit</th>
+              <th>Aktiv</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-product>
+            <tr>
+              <td class="select-col"><p-table-checkbox [value]="product" /></td>
+              <td class="name-cell" (click)="openProduct(product)">{{ product.name }}</td>
+              <td>
+                @if (product.category?.trim()) {
+                  {{ product.category }}
+                } @else {
+                  <span class="missing-category">fehlt</span>
+                }
+              </td>
+              <td>{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
+              <td>{{ formatPriceRange(product) }}</td>
+              <td>{{ formatPrintTimeRange(product) }}</td>
+              <td>
+                <p-toggleswitch [ngModel]="product.active" (ngModelChange)="toggleActive(product, $event)" />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="7">Keine Produkte vorhanden.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+
+      <p-tabpanel value="1">
+        <p-table [value]="hiddenProducts()" [rows]="20" [paginator]="true" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
+          <ng-template #header>
+            <tr>
+              <th class="select-col"><p-table-header-checkbox /></th>
+              <th>Name</th>
+              <th>Kategorie</th>
+              <th>Mehrfarbig</th>
+              <th>Preis</th>
+              <th>Laufzeit</th>
+              <th>Aktiv</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-product>
+            <tr>
+              <td class="select-col"><p-table-checkbox [value]="product" /></td>
+              <td class="name-cell" (click)="openProduct(product)">{{ product.name }}</td>
+              <td>
+                @if (product.category?.trim()) {
+                  {{ product.category }}
+                } @else {
+                  <span class="missing-category">fehlt</span>
+                }
+              </td>
+              <td>{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
+              <td>{{ formatPriceRange(product) }}</td>
+              <td>{{ formatPrintTimeRange(product) }}</td>
+              <td>
+                <p-toggleswitch [ngModel]="product.active" (ngModelChange)="toggleActive(product, $event)" />
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template #emptymessage>
+            <tr><td colspan="7">Keine ausgeblendeten Produkte.</td></tr>
+          </ng-template>
+        </p-table>
+      </p-tabpanel>
+    </p-tabpanels>
+  </p-tabs>
+}
+
+<p-dialog
+  header="Kategorie für Auswahl setzen"
+  [(visible)]="bulkDialogVisible"
+  [modal]="true"
+  [style]="{ width: '420px' }"
+  [breakpoints]="{ '575px': '95vw' }"
+>
+  <p class="bulk-hint">{{ selectedProducts().length }} Produkt(e) bekommen diese Kategorie. Leer lassen = Kategorie entfernen.</p>
+  <p-autocomplete
+    [ngModel]="bulkCategory()"
+    (ngModelChange)="bulkCategory.set($event ?? '')"
+    [suggestions]="categorySuggestions()"
+    (completeMethod)="searchCategories($event)"
+    [dropdown]="true"
+    [minQueryLength]="0"
+    [completeOnFocus]="true"
+    appendTo="body"
+    inputStyleClass="w-full"
+    styleClass="w-full"
+    placeholder="Auswählen oder neue Kategorie eintippen"
+  />
+  @if (bulkError()) {
+    <p-message severity="error" styleClass="mt-2">{{ bulkError() }}</p-message>
+  }
+  <div class="bulk-actions">
+    <p-button label="Übernehmen" icon="pi pi-check" [loading]="bulkSaving()" (click)="applyBulkCategory()"></p-button>
+  </div>
+</p-dialog>

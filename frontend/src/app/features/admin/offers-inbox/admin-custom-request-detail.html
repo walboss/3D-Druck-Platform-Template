@@ -1,0 +1,179 @@
+<p-button severity="secondary" [text]="true" icon="pi pi-arrow-left" label="Zurück" (click)="back()"></p-button>
+
+@if (loading()) {
+  <p-skeleton height="6rem" styleClass="mt-2" />
+} @else if (error()) {
+  <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+} @else if (request()) {
+  <div class="header-row">
+    <h1>Individualanfrage</h1>
+    <p-tag [value]="request()!.status" [severity]="statusSeverity(request()!.status)" />
+  </div>
+
+  <div class="detail-box">
+    <p><strong>Kunde:</strong> {{ request()!.customerName }}
+      @if (request()!.customerPhone) { · {{ request()!.customerPhone }} }
+      @if (request()!.customerEmail) { · {{ request()!.customerEmail }} }
+    </p>
+    <p><strong>Größe:</strong> {{ request()!.desiredSize }} · <strong>Menge:</strong> {{ request()!.qty }}</p>
+    <p><strong>Beschreibung:</strong> {{ request()!.message }}</p>
+    @if (request()!.makerworldLink) {
+      <p><strong>Link:</strong> <a [href]="request()!.makerworldLink!" target="_blank" rel="noopener noreferrer">{{ request()!.makerworldLink }}</a></p>
+    }
+    @if (request()!.ownImage) {
+      <p><strong>Referenzbild:</strong> <a [href]="request()!.ownImage!" target="_blank" rel="noopener noreferrer">{{ request()!.ownImage }}</a></p>
+    }
+    @if (request()!.colorName) {
+      <p><strong>Farbe:</strong> {{ request()!.colorName }} @if (request()!.finishName) { / {{ request()!.finishName }} }</p>
+    }
+    @if (request()!.estimatedWeightG !== null || request()!.estimatedPrintMinutes !== null) {
+      <p>
+        <strong>Vorschlag aus 3mf (bitte prüfen):</strong>
+        Gewicht {{ request()!.estimatedWeightG !== null ? request()!.estimatedWeightG + ' g' : '–' }} ·
+        Druckzeit {{ request()!.estimatedPrintMinutes !== null ? request()!.estimatedPrintMinutes + ' min' : '–' }}
+      </p>
+    }
+    @if (request()!.slotColors.length > 0) {
+      <p><strong>Farbslots:</strong></p>
+      <ul>
+        @for (slot of request()!.slotColors; track slot.slot_label) {
+          <li>{{ slot.slot_label }}: {{ slot.colorName ?? '(kein Treffer)' }}</li>
+        }
+      </ul>
+    }
+  </div>
+
+  @if (actionError()) {
+    <p-message severity="error" styleClass="mt-2 mb-2">{{ actionError() }}</p-message>
+  }
+
+  @if (request()!.status === 'neu' || request()!.status === 'geprueft') {
+    <div class="actions-row">
+      <p-button label="Angebot erstellen" icon="pi pi-file" (click)="openOfferForm()"></p-button>
+      <p-button severity="danger" [text]="true" label="Anfrage ablehnen" (click)="openRejectDialog()"></p-button>
+    </div>
+  }
+
+  @if (request()!.offers.length > 0) {
+    <h2 class="mt-4">Angebote zu dieser Anfrage</h2>
+    <div class="offer-list">
+      @for (offer of request()!.offers; track offer.id) {
+        <div class="offer-row">
+          <span>{{ offer.status }}</span>
+          <span>gültig bis {{ offer.validUntil | date: 'dd.MM.yyyy' }}</span>
+          <p-button size="small" severity="secondary" [text]="true" icon="pi pi-copy" label="Link kopieren" (click)="copyLink('/angebot/' + offer.secureToken)"></p-button>
+        </div>
+      }
+    </div>
+    @if (request()!.status !== 'abgelehnt') {
+      <p-button severity="secondary" label="Neues Angebot zur selben Anfrage" (click)="openOfferForm()" class="mt-2"></p-button>
+    }
+  }
+}
+
+<!-- Ablehnen -->
+<p-dialog header="Anfrage ablehnen" [(visible)]="rejectDialogVisible" [modal]="true" [style]="{ width: '420px' }">
+  <label>Grund *</label>
+  <textarea pTextarea rows="3" [(ngModel)]="rejectReason" class="w-full"></textarea>
+  <div class="dialog-actions">
+    <p-button severity="danger" label="Ablehnen" [disabled]="!rejectReason().trim()" [loading]="actionRunning()" (click)="confirmReject()"></p-button>
+  </div>
+</p-dialog>
+
+<!-- Angebot erstellen (erst rendern, wenn die Anfrage geladen ist, sonst null-Fehler) -->
+@if (request()) {
+  <p-dialog header="Angebot erstellen" [(visible)]="offerFormVisible" [modal]="true" [style]="{ width: '680px' }">
+    @if (createdOfferLink()) {
+      <p-message severity="success" styleClass="mb-3">
+        Angebot erstellt!
+        <p-button size="small" [text]="true" icon="pi pi-copy" label="Link kopieren" (click)="copyCreatedOfferLink()"></p-button>
+      </p-message>
+    } @else {
+      @if (request()!.estimatedWeightG !== null || request()!.estimatedPrintMinutes !== null) {
+        <p-message severity="info" styleClass="mb-3">
+          Vorschlag aus 3mf: {{ request()!.estimatedWeightG !== null ? request()!.estimatedWeightG + ' g' : '– g' }},
+          {{ request()!.estimatedPrintMinutes !== null ? request()!.estimatedPrintMinutes + ' min' : '– min' }} — bitte prüfen.
+          Unverbindlicher Slicer-Wert, Kostenfelder bleiben manuell.
+        </p-message>
+      }
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Gültig von *</label>
+          <p-datepicker [(ngModel)]="validFrom" [showTime]="true" dateFormat="dd.mm.yy" class="w-full" />
+        </div>
+        <div class="form-field">
+          <label>Gültig bis *</label>
+          <p-datepicker [(ngModel)]="validUntil" [showTime]="true" dateFormat="dd.mm.yy" class="w-full" />
+        </div>
+      </div>
+
+      @for (item of items(); track $index) {
+        <div class="item-block">
+          <div class="item-block-header">
+            <strong>Position {{ $index + 1 }}</strong>
+            @if (items().length > 1) {
+              <p-button size="small" severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Position entfernen" (click)="removeItemRow($index)"></p-button>
+            }
+          </div>
+          <div class="form-field">
+            <label>Beschreibung *</label>
+            <input type="text" pInputText [value]="item.description" (input)="updateItemDescription($index, $any($event.target).value)" class="w-full" />
+          </div>
+          <div class="grid-3">
+            <div class="form-field">
+              <label>Menge</label>
+              <p-inputnumber [ngModel]="item.qty" (ngModelChange)="updateItemQty($index, $event)" [min]="1" />
+            </div>
+            <div class="form-field">
+              <label>Marge (%)</label>
+              <p-inputnumber [ngModel]="item.marginPercent" (ngModelChange)="updateItemMargin($index, $event)" suffix=" %" />
+            </div>
+            <div class="form-field">
+              <label>Grund</label>
+              <p-select [options]="reasonOptions" [ngModel]="item.reason" (ngModelChange)="updateItemReason($index, $event)" optionLabel="label" optionValue="value" />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-field">
+              <label>Filamentkosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.filament_cost" (ngModelChange)="updateItemCost($index, 'filament_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Energiekosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.energy_cost" (ngModelChange)="updateItemCost($index, 'energy_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Maschinenkosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.machine_cost" (ngModelChange)="updateItemCost($index, 'machine_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Arbeitskosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.labor_cost" (ngModelChange)="updateItemCost($index, 'labor_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Verpackungskosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.packaging_cost" (ngModelChange)="updateItemCost($index, 'packaging_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Lizenzkosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.license_cost" (ngModelChange)="updateItemCost($index, 'license_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Ausschusszuschlag</label>
+              <p-inputnumber [ngModel]="item.costComponents.scrap_allowance" (ngModelChange)="updateItemCost($index, 'scrap_allowance', $event)" mode="currency" currency="EUR" />
+            </div>
+            <div class="form-field">
+              <label>Sonstige Kosten</label>
+              <p-inputnumber [ngModel]="item.costComponents.other_cost" (ngModelChange)="updateItemCost($index, 'other_cost', $event)" mode="currency" currency="EUR" />
+            </div>
+          </div>
+        </div>
+      }
+      <p-button severity="secondary" label="Position hinzufügen" icon="pi pi-plus" (click)="addItemRow()"></p-button>
+
+      <div class="dialog-actions">
+        <p-button label="Angebot erstellen" [loading]="actionRunning()" (click)="submitOffer()"></p-button>
+      </div>
+    }
+  </p-dialog>
+}

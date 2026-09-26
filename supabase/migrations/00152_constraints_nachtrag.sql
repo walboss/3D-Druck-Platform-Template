@@ -1,0 +1,31 @@
+-- Migration 00152: Nachträgliche Constraints (order_items) — OFFENER PUNKT,
+-- absichtlich ohne DDL. Siehe Schlussbericht des Tasks "Views, Seed-Daten und
+-- nachträgliche Constraints" für die Einordnung.
+--
+-- Beide in diesem Task geforderten Constraints existieren bereits, angelegt
+-- direkt in supabase/migrations/0008_ebene8.sql bei der Tabellenerstellung von
+-- order_items — nicht erst nachträglich, wie es
+-- specs/implementierungsplan-schritt9.md §1/§2 für Migration 00152 vorsieht:
+--
+--   1. CHECK-Constraint chk_order_items_katalog_xor_desc — exakt die im Task
+--      verlangte Katalogbezug-XOR-Bedingung (product_id/variant_id/
+--      variant_configuration_id alle gesetzt und desired_description NULL,
+--      oder alle drei NULL und desired_description gesetzt).
+--   2. Trigger trg_check_bundle_group_order (Funktion
+--      trg_check_bundle_group_order_fn) — exakt die im Task verlangte Prüfung,
+--      dass order_bundle_groups.order_id bei gesetztem bundle_group_id mit
+--      order_items.order_id übereinstimmt.
+--
+-- Ein erneutes CREATE würde mit "constraint/trigger already exists"
+-- fehlschlagen. Da beides bereits seit Ebene 8 aktiv ist (die Migration wurde
+-- laut Git-Historie bereits angewendet), sind fn_place_order (00142) und
+-- fn_accept_offer (00147) zwangsläufig bereits konform — beide wurden gegen
+-- diese Constraints entwickelt und getestet (siehe Prüfung im
+-- Schlussbericht). Es liegen auch keine Testdaten vor, die den Constraint
+-- verletzen könnten: Postgres hätte jeden solchen INSERT/UPDATE seit Ebene 8
+-- bereits abgelehnt.
+--
+-- Diese Datei bleibt bewusst ohne ausführbares SQL, um die in
+-- implementierungsplan-schritt9.md §1 festgelegte Nummernreihenfolge
+-- (00149 → 00150 → 00151 → 00152) nicht zu verändern und den Befund
+-- nachvollziehbar in der Migrationshistorie zu dokumentieren.

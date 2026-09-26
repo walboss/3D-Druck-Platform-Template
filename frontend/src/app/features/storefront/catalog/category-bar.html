@@ -1,0 +1,27 @@
+@if (categories().length > 0) {
+  <nav class="category-bar" aria-label="Kategorien">
+    <div class="category-bar-track">
+      <button
+        type="button"
+        class="category-tab"
+        [class.active]="selected().length === 0"
+        [attr.aria-pressed]="selected().length === 0"
+        (click)="select(null, $event)"
+      >
+        Alle
+      </button>
+      @for (category of categories(); track category.value) {
+        <button
+          type="button"
+          class="category-tab"
+          [class.active]="isActive(category.value)"
+          [class.season]="category.season"
+          [attr.aria-pressed]="isActive(category.value)"
+          (click)="select(category.value, $event)"
+        >
+          {{ category.name }}
+        </button>
+      }
+    </div>
+  </nav>
+}

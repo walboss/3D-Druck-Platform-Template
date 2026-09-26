@@ -1,0 +1,197 @@
+<div class="page-head">
+  <h1>Individualanfrage</h1>
+  <p class="intro">
+    Du hast ein eigenes Modell (z. B. von MakerWorld) oder eine individuelle Idee? Beschreibe uns,
+    was du dir vorstellst – wir melden uns{{ showPrices() ? ' mit einem Angebot' : ' bei dir' }}.
+  </p>
+</div>
+
+@if (submitted()) {
+  <div class="success-box app-card">
+    <i class="pi pi-check-circle"></i>
+    @if (showPrices()) {
+      <h2>Danke für deine Anfrage!</h2>
+      <p>Wir melden uns mit einem Angebot, sobald wir sie geprüft haben.</p>
+    } @else {
+      <h2>Wunschliste/Anfrage wurde übermittelt</h2>
+      <p>Wir melden uns, sobald wir sie geprüft haben.</p>
+    }
+  </div>
+} @else {
+  <div class="form-wrap">
+    <p class="required-hint">Mit * markierte Felder sind Pflichtfelder.</p>
+
+    <section class="app-card">
+      <h2>Dein Wunsch</h2>
+
+      <div class="form-field">
+        <label for="message">Beschreibung *</label>
+        <textarea id="message" pTextarea rows="4" [(ngModel)]="message" [invalid]="attempted() && invalidMessage()" placeholder="Was soll gedruckt werden?"></textarea>
+      </div>
+
+      <div class="form-field">
+        <label for="makerworldLink">Link zum Modell <span class="optional">(z. B. MakerWorld, optional)</span></label>
+        <input id="makerworldLink" type="url" pInputText inputmode="url" [(ngModel)]="makerworldLink" placeholder="https://…" />
+      </div>
+
+      <div class="form-field">
+        <label for="ownImage">Link zu einem Referenzbild <span class="optional">(optional)</span></label>
+        <input id="ownImage" type="url" pInputText inputmode="url" [(ngModel)]="ownImage" placeholder="https://…" />
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="desiredSize">Gewünschte Größe *</label>
+          <p-inputnumber
+            inputId="desiredSize"
+            [(ngModel)]="desiredSize"
+            [min]="0"
+            [maxFractionDigits]="1"
+            locale="de-DE"
+            suffix=" cm"
+            placeholder="z. B. 15 cm"
+            [invalid]="attempted() && invalidSize()"
+            styleClass="w-full"
+          />
+        </div>
+
+        <div class="form-field">
+          <label>Menge *</label>
+          <p-inputnumber
+            [(ngModel)]="qty"
+            [invalid]="attempted() && invalidQty()"
+            [min]="1"
+            [showButtons]="true"
+            buttonLayout="horizontal"
+            incrementButtonIcon="pi pi-plus"
+            decrementButtonIcon="pi pi-minus"
+            [inputStyle]="{ width: '4rem', 'text-align': 'center' }"
+          />
+        </div>
+      </div>
+    </section>
+
+    <section class="app-card">
+      <h2>Farbe</h2>
+
+      <div class="form-field">
+        <label>Farbmodus *</label>
+        <p-selectbutton
+          [options]="colorModeOptions"
+          [ngModel]="colorMode()"
+          (ngModelChange)="colorMode.set($event)"
+          optionLabel="label"
+          optionValue="value"
+          [allowEmpty]="false"
+          class="w-full"
+        />
+      </div>
+
+      @if (colorMode() === 'einfarbig') {
+        <div class="form-field color-field">
+          <label>Farbe wählen *</label>
+          <div class="color-pick-row">
+            <input type="color" [(ngModel)]="singleColorHex" class="color-input" aria-label="Farbe" />
+            <span class="color-hex">{{ singleColorHex() }}</span>
+          </div>
+          @if (bestMatchColor()) {
+            <p-message severity="info" styleClass="mt-2">
+              Wir ordnen deine Farbe automatisch "{{ bestMatchColor()!.name }}" zu.
+            </p-message>
+          }
+        </div>
+
+        <div class="form-field">
+          <label>Finish <span class="optional">(optional)</span></label>
+          <p-select
+            [options]="finishes()"
+            [ngModel]="singleFinishId()"
+            (ngModelChange)="singleFinishId.set($event)"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Keine Präferenz"
+            [showClear]="true"
+            class="w-full"
+          />
+        </div>
+      } @else {
+        <div class="form-field">
+          <label>Farbslots * <span class="optional">(max. 8)</span></label>
+          @if (attempted() && invalidColor()) {
+            <p class="hint hint-error">Bitte mindestens einen Farbslot anlegen.</p>
+          }
+          <p class="hint">Ordne jedem Teil deines Modells eine Farbe zu.</p>
+          @for (slot of slots(); track $index) {
+            <div class="slot-row">
+              <input type="text" pInputText [value]="slot.label" disabled class="slot-label" />
+              <input
+                type="color"
+                [value]="slot.hex"
+                (input)="updateSlotHex($index, $any($event.target).value)"
+                class="color-input"
+                [attr.aria-label]="slot.label"
+              />
+              <p-button severity="secondary" [text]="true" [rounded]="true" icon="pi pi-trash" ariaLabel="Slot entfernen" (click)="removeSlot($index)"></p-button>
+            </div>
+          }
+          <p-button severity="secondary" [outlined]="true" label="Slot hinzufügen" icon="pi pi-plus" [disabled]="!canAddSlot()" (click)="addSlot()"></p-button>
+        </div>
+      }
+    </section>
+
+    <section class="app-card">
+      <h2>Kontaktdaten</h2>
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="firstName">Vorname *</label>
+          <input id="firstName" type="text" pInputText autocomplete="given-name" [(ngModel)]="firstName" [invalid]="attempted() && invalidFirstName()" />
+        </div>
+        <div class="form-field">
+          <label for="lastName">Nachname{{ lastNameRequired() ? ' *' : '' }}</label>
+          <input id="lastName" type="text" pInputText autocomplete="family-name" [(ngModel)]="lastName" [invalid]="attempted() && invalidLastName()" />
+        </div>
+        <div class="form-field">
+          <label for="phone">Telefon</label>
+          <input id="phone" type="tel" pInputText autocomplete="tel" [(ngModel)]="phone" [invalid]="attempted() && invalidContact()" />
+        </div>
+        <div class="form-field">
+          <label for="email">E-Mail</label>
+          <input id="email" type="email" pInputText autocomplete="email" [(ngModel)]="email" [invalid]="attempted() && invalidContact()" />
+        </div>
+      </div>
+      <p class="hint">
+        @if (contactRequired()) {
+          Telefon oder E-Mail muss angegeben werden.
+        } @else {
+          Telefon oder E-Mail <span class="optional">(optional)</span> — hilft uns, dich bei Rückfragen zu erreichen.
+        }
+      </p>
+
+      <div class="turnstile-row">
+        <app-turnstile-widget (verified)="onTurnstileVerified($event)" (expired)="onTurnstileExpired()" />
+      </div>
+
+      @if (error()) {
+        <p-message severity="error" styleClass="mt-2">{{ error() }}</p-message>
+      }
+
+      @if (legalPagesEnabled) {
+        <p class="privacy-hint">
+          Mit dem Absenden speichern wir deine Angaben zur Bearbeitung – mehr dazu in der
+          <a routerLink="/datenschutz">Datenschutzerklärung</a>.
+        </p>
+      }
+
+      <p-button
+        label="Anfrage absenden"
+        icon="pi pi-send"
+        size="large"
+        [disabled]="submitting()"
+        [loading]="submitting()"
+        (click)="submit()"
+        styleClass="w-full"
+        class="submit-btn"
+      ></p-button>
+    </section>
+  </div>
+}
