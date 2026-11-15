@@ -1,4 +1,5 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, signal, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -9,6 +10,7 @@ import { TextareaModule } from 'primeng/textarea';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { CheckboxModule } from 'primeng/checkbox';
 import { TabsModule } from 'primeng/tabs';
 import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -31,30 +33,28 @@ import {
   hasPlateChoice,
   planError,
   planProducts,
+  makerworldViewerUrl,
+  applyPlateAnalysis,
+  plateAnalysisHint,
 } from '../../../core/utils/makerworld-plates.util';
 import { MakerworldPlateMapping } from '../../../shared/makerworld-plates/makerworld-plate-mapping';
-
-// Grundstock an Kategorien (Entscheidung 2026-09-19). Kategorie bleibt
-// Freitext — diese Liste ergänzt nur die Vorschläge um Werte, die noch von
-// keinem Produkt benutzt werden.
-const BASE_CATEGORIES = ['Frühling', 'Sommer', 'Herbst', 'Winter', 'Ostern', 'Weihnachten', 'Halloween'];
-
-const EMPTY_COSTS: CostComponents = {
-  filament_cost: 0,
-  energy_cost: 0,
-  machine_cost: 0,
-  labor_cost: 0,
-  packaging_cost: 0,
-  license_cost: 0,
-  scrap_allowance: 0,
-  other_cost: 0,
-};
+import {
+  BASE_CATEGORIES,
+  EMPTY_COSTS,
+  analyzeProductImport,
+  applyEstimatesToVariantForm,
+  newVariantForm,
+  productSaveErrorMessage,
+} from './admin-product-editor.util';
+import { MessageService } from 'primeng/api';
+import { SizedImage } from '../../../shared/sized-image/sized-image';
 
 @Component({
   selector: 'app-admin-product-editor',
   standalone: true,
-  imports: [
+  imports: [SizedImage, 
     MakerworldPlateMapping,
+    CheckboxModule,
     DecimalPipe,
     FormsModule,
     ButtonModule,
@@ -73,10 +73,13 @@ const EMPTY_COSTS: CostComponents = {
   styleUrl: './admin-product-editor.scss',
 })
 export class AdminProductEditor implements OnInit {
-  // Beschreibungsfeld vorerst ausgeblendet (Entscheidung 2026-09-19): wird in
-  // der Startphase nicht gepflegt. Feld, Signal und Speichern bleiben
-  // erhalten — nur die Anzeige ist abgeschaltet.
-  readonly showDescription = false;
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  // Beschreibungsfeld wieder sichtbar (Entscheidung Betreiber 2026-11-14, ersetzt
+  // die Ausblendung vom 2026-09-19); MakerWorld-Import füllt einen Vorschlag.
+  readonly showDescription = true;
 
   readonly isNew = signal(true);
   readonly productId = signal<string | null>(null);
@@ -109,6 +112,12 @@ export class AdminProductEditor implements OnInit {
   // werden daraus Herkunft (Spec 27 §3) und die Standard-Variante (Spec 27 §2,
   // identisch zum Sammelimport) angelegt.
   readonly productMakerworldImport = signal<MakerworldImportResult | null>(null);
+  // Link zur 3D-Ansicht des gewählten Druckprofils auf MakerWorld
+  readonly analysisHint = computed(() => plateAnalysisHint(this.productMakerworldImport()?.plateAnalysis, false));
+  readonly viewerUrl = computed(() => {
+    const r = this.productMakerworldImport();
+    return r ? makerworldViewerUrl(r.sourceUrl, r.printProfile?.profileId) : null;
+  });
   // 00198: Platten/Farbteile beim Anlegen aus MakerWorld (null = nur eine Platte/Farbe)
   readonly plateMapping = signal<PlateMappingState | null>(null);
 
@@ -120,16 +129,20 @@ export class AdminProductEditor implements OnInit {
   readonly variants = signal<AdminVariant[]>([]);
   readonly variantDialogVisible = signal(false);
   readonly editingVariant = signal<AdminVariant | null>(null);
-  readonly variantForm = signal<Omit<AdminVariant, 'id'>>({
-    sizeLabel: '',
-    weightG: 0,
-    printTimeMin: 0,
-    workTimeMin: 0,
-    materialNeedG: 0,
-    minQty: 1,
-    maxQty: 10,
-    stepQty: 1,
-    active: true,
+  readonly variantForm = signal<Omit<AdminVariant, 'id'>>(newVariantForm());
+  // Teile je Variante (mehrfarbige Produkte): welche Teile gehören zu dieser
+  // Variante, mit Gramm/Druckzeit (z. B. Pinguin „Einteilig“ nur „Komplett“).
+  // locked = gehört schon zur gespeicherten Variante, kann nicht entfernt werden (00153)
+  readonly variantPartRows = signal<
+    { partId: string; name: string; used: boolean; locked: boolean; weightG: number; printTimeMin: number }[]
+  >([]);
+  readonly showVariantParts = computed(() => this.isMulticolor() && this.parts().length > 0);
+  readonly partSums = computed(() => {
+    const used = this.variantPartRows().filter((r) => r.used);
+    return {
+      weightG: Math.round(used.reduce((sum, r) => sum + (r.weightG || 0), 0) * 10) / 10,
+      printTimeMin: Math.round(used.reduce((sum, r) => sum + (r.printTimeMin || 0), 0)),
+    };
   });
 
   // Kalkulation
@@ -149,6 +162,8 @@ export class AdminProductEditor implements OnInit {
   // Teile (nur mehrfarbig)
   readonly parts = signal<AdminProductPart[]>([]);
   readonly newPartName = signal('');
+  // Entwürfe für umbenannte Teile (part id -> Name)
+  readonly partNameDrafts = signal<Record<string, string>>({});
 
   // MakerWorld-Import (Task D): Vorschlag fuer Gewicht/Druckzeit im
   // Varianten-Dialog, unverbindlich, Admin kann ueberschreiben.
@@ -167,15 +182,48 @@ export class AdminProductEditor implements OnInit {
 
   ngOnInit(): void {
     void this.loadCategories();
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id || id === 'neu') {
-      this.isNew.set(true);
-      this.loading.set(false);
-      return;
-    }
-    this.isNew.set(false);
-    this.productId.set(id);
-    this.load(id);
+    // Auf jede Änderung der ID reagieren: Angular verwendet die Komponente
+    // beim Wechsel zwischen Produkten wieder (Live-Fund 2026-11-15: sonst
+    // wurde das vorige Produkt angezeigt und gespeichert).
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const id = params.get('id');
+      if (id === this.productId() && !this.isNew()) return;
+      this.resetForm();
+      if (!id || id === 'neu') {
+        this.isNew.set(true);
+        this.productId.set(null);
+        this.loading.set(false);
+        return;
+      }
+      this.isNew.set(false);
+      this.productId.set(id);
+      void this.load(id);
+    });
+  }
+
+  /** Formular auf Anfangszustand (vor dem Laden eines anderen Produkts). */
+  private resetForm(): void {
+    this.error.set(null);
+    this.name.set('');
+    this.description.set('');
+    this.category.set('');
+    this.active.set(true);
+    this.isMulticolor.set(false);
+    this.tags.set([]);
+    this.images.set([]);
+    this.sourceMakerworldUrl.set(null);
+    this.sourceMakerworldTitle.set(null);
+    this.variants.set([]);
+    this.parts.set([]);
+    this.partNameDrafts.set({});
+    this.productMakerworldUrl.set('');
+    this.productMakerworldError.set(null);
+    this.productMakerworldHint.set(null);
+    this.productMakerworldImages.set([]);
+    this.productMakerworldImport.set(null);
+    this.plateMapping.set(null);
+    this.variantDialogVisible.set(false);
+    this.calcDialogVisible.set(false);
   }
 
   async load(id: string): Promise<void> {
@@ -208,6 +256,13 @@ export class AdminProductEditor implements OnInit {
 
   back(): void {
     this.router.navigate(['/admin/katalog']);
+  }
+
+  /** Modell erneut aus MakerWorld einlesen (Import-Seite mit Rückfrage, 00202). */
+  reimportFromMakerworld(): void {
+    const url = this.sourceMakerworldUrl();
+    if (!url) return;
+    void this.router.navigate(['/admin/katalog/import'], { queryParams: { link: url, neu: '1' } });
   }
 
   private async loadCategories(): Promise<void> {
@@ -274,39 +329,26 @@ export class AdminProductEditor implements OnInit {
     try {
       const result = await this.workerApiService.importMakerworldEstimates(accessToken, url);
       this.productMakerworldImport.set(result);
-      // Defensiv normalisieren: Ein Worker ohne title/images (aelterer Stand)
-      // darf das Rendering nicht zum Absturz bringen.
-      const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim() : null;
-      const titleDe = typeof result.titleDe === 'string' && result.titleDe.trim() ? result.titleDe.trim() : null;
-      const plates = Array.isArray(result.plates) ? result.plates : [];
-      this.productMakerworldImport.set({ ...result, plates });
-      const plateImages = plates.map((p) => p.imageUrl).filter((u): u is string => !!u);
-      const modelImages = Array.isArray(result.images) ? result.images.filter((u) => typeof u === 'string' && u) : [];
-      const images = [...modelImages, ...plateImages.filter((u) => !modelImages.includes(u))];
-      if (title === null && images.length === 0) {
-        this.productMakerworldHint.set('Kein Titel und keine Bilder in MakerWorld gefunden — bitte manuell eintragen.');
+      const analysis = analyzeProductImport(result, this.isNew());
+      this.productMakerworldImport.set({ ...result, plates: analysis.plates });
+      if (analysis.empty) {
+        this.productMakerworldHint.set(analysis.hint);
         return;
       }
-      // Spec 27 §4: deutsche Übersetzung als Namensvorschlag, Original als
-      // Hinweis; ohne Übersetzung (Workers AI nicht erreichbar) das Original.
-      if (title !== null) {
-        this.name.set(titleDe ?? title);
+      if (analysis.suggestedName !== null) {
+        this.name.set(analysis.suggestedName);
       }
-      if (this.isNew() && hasPlateChoice(plates)) {
-        this.plateMapping.set(defaultMappingState(plates, this.name()));
+      // Beschreibungs-Vorschlag nur in ein leeres Feld
+      if (!this.description().trim() && result.descriptionDe?.trim()) {
+        this.description.set(result.descriptionDe.trim());
       }
-      this.productMakerworldImages.set(images);
-      const variantHint = this.isNew()
-        ? ' Beim Anlegen wird eine Variante „Standard" mit Gewicht/Druckzeit aus MakerWorld erstellt.'
-        : '';
-      this.productMakerworldHint.set(
-        (title === null
-          ? 'Kein Titel gefunden. Bilder unten einzeln übernehmen.'
-          : titleDe !== null
-            ? `Name aus MakerWorld übersetzt übernommen (Original: „${title}"), bitte prüfen. Bilder unten einzeln übernehmen.`
-            : 'Name aus MakerWorld übernommen (keine Übersetzung verfügbar), bitte prüfen. Bilder unten einzeln übernehmen.') +
-          variantHint,
-      );
+      if (this.isNew() && hasPlateChoice(analysis.plates)) {
+        this.plateMapping.set(
+          applyPlateAnalysis(defaultMappingState(analysis.plates, this.name()), analysis.plates, result.plateAnalysis, false),
+        );
+      }
+      this.productMakerworldImages.set(analysis.images);
+      this.productMakerworldHint.set(analysis.hint);
     } catch (e) {
       const err = e as { error?: { error?: string } };
       this.productMakerworldError.set(err?.error?.error ?? 'MakerWorld-Import fehlgeschlagen.');
@@ -373,7 +415,7 @@ export class AdminProductEditor implements OnInit {
           // Variante erscheint das Produkt nicht in v_catalog.
           const weightG = planned.weightG;
           const variantId = await this.catalogService.createVariant(id, {
-            sizeLabel: 'Standard',
+            sizeLabel: mw.sizeHint?.trim() || 'Standard',
             weightG,
             printTimeMin: planned.printTimeMin,
             workTimeMin: 0,
@@ -392,42 +434,63 @@ export class AdminProductEditor implements OnInit {
           }
         }
         this.router.navigate(['/admin/katalog', id]);
+        this.messages.add({ severity: 'success', summary: 'Produkt angelegt' });
       } else {
         // Bestehendes Produkt: nach "Auslesen" die MakerWorld-Herkunft
         // nachtragen (z. B. für den Link beim Produktionsstart).
         const loaded = this.productMakerworldImport();
         const source = loaded ? { url: loaded.sourceUrl, title: loaded.title, modelId: loaded.modelId } : null;
         await this.catalogService.updateProduct(this.productId()!, input, source);
+        this.messages.add({ severity: 'success', summary: 'Produkt gespeichert' });
         if (source) {
           this.sourceMakerworldUrl.set(source.url);
           this.sourceMakerworldTitle.set(source.title);
         }
       }
     } catch (e) {
-      const code = (e as { code?: string } | null)?.code;
-      this.error.set(
-        code === '23505'
-          ? 'Dieses MakerWorld-Modell existiert bereits als Produkt.'
-          : 'Produkt konnte nicht gespeichert werden.',
-      );
+      this.error.set(productSaveErrorMessage(e));
     } finally {
       this.saving.set(false);
     }
   }
 
+  private async loadVariantPartRows(variantId: string | null): Promise<void> {
+    const existing = variantId ? await this.catalogService.listVariantParts(variantId) : [];
+    this.variantPartRows.set(
+      this.parts().map((p) => {
+        const vp = existing.find((e) => e.partId === p.id);
+        return { partId: p.id, name: p.name, used: !!vp, locked: !!vp, weightG: vp?.weightG ?? 0, printTimeMin: vp?.printTimeMin ?? 0 };
+      }),
+    );
+  }
+
+  /** Teil-Zeile ändern; Gewicht/Druckzeit/Materialbedarf der Variante = Summe. */
+  setVariantPart(partId: string, patch: Partial<{ used: boolean; weightG: number; printTimeMin: number }>): void {
+    const rows = this.variantPartRows().map((r) => (r.partId === partId ? { ...r, ...patch } : r));
+    this.variantPartRows.set(rows);
+    this.applyPartSums();
+  }
+
+  /**
+   * Gewicht/Druckzeit/Materialbedarf der Variante = Summe der Teile. Wird beim
+   * Ändern UND beim Speichern angewendet: die Zahlenfelder der Variante können
+   * beim Verlassen ihren alten Wert zurückschreiben (Live-Fund 2026-11-15).
+   */
+  private applyPartSums(): void {
+    const used = this.variantPartRows().filter((r) => r.used);
+    if (used.length === 0) return;
+    const weightG = Math.round(used.reduce((s, r) => s + (r.weightG || 0), 0) * 10) / 10;
+    const printTimeMin = Math.round(used.reduce((s, r) => s + (r.printTimeMin || 0), 0));
+    // Nach dem aktuellen Change-Detection-Lauf erneut setzen, damit kein
+    // Blur-Event des Variantenfelds die Summe überschreibt.
+    this.variantForm.set({ ...this.variantForm(), weightG, printTimeMin, materialNeedG: weightG });
+    queueMicrotask(() => this.variantForm.set({ ...this.variantForm(), weightG, printTimeMin, materialNeedG: weightG }));
+  }
+
   openNewVariantDialog(): void {
     this.editingVariant.set(null);
-    this.variantForm.set({
-      sizeLabel: '',
-      weightG: 0,
-      printTimeMin: 0,
-      workTimeMin: 0,
-      materialNeedG: 0,
-      minQty: 1,
-      maxQty: 10,
-      stepQty: 1,
-      active: true,
-    });
+    this.variantForm.set(newVariantForm());
+    void this.loadVariantPartRows(null);
     this.resetMakerworldImport();
     this.variantDialogVisible.set(true);
   }
@@ -435,6 +498,7 @@ export class AdminProductEditor implements OnInit {
   openEditVariantDialog(variant: AdminVariant): void {
     this.editingVariant.set(variant);
     this.variantForm.set({ ...variant });
+    void this.loadVariantPartRows(variant.id);
     this.resetMakerworldImport();
     this.variantDialogVisible.set(true);
   }
@@ -458,15 +522,12 @@ export class AdminProductEditor implements OnInit {
     this.makerworldHint.set(null);
     try {
       const result = await this.workerApiService.importMakerworldEstimates(accessToken, url);
-      if (result.estimatedPrintMinutes === null && result.estimatedWeightG === null) {
+      const updated = applyEstimatesToVariantForm(this.variantForm(), result);
+      if (updated === null) {
         this.makerworldHint.set('Keine Werte in MakerWorld gefunden — bitte manuell eintragen.');
         return;
       }
-      this.variantForm.update((f) => ({
-        ...f,
-        weightG: result.estimatedWeightG ?? f.weightG,
-        printTimeMin: result.estimatedPrintMinutes ?? f.printTimeMin,
-      }));
+      this.variantForm.set(updated);
       this.makerworldHint.set('Aus MakerWorld übernommen, bitte prüfen.');
     } catch (e) {
       const err = e as { error?: { error?: string } };
@@ -483,13 +544,32 @@ export class AdminProductEditor implements OnInit {
     this.error.set(null);
     try {
       const editing = this.editingVariant();
+      const usedParts = this.variantPartRows().filter((r) => r.used);
+      if (this.showVariantParts() && usedParts.length === 0) {
+        this.error.set('Bitte mindestens ein Teil für diese Variante wählen.');
+        return;
+      }
+      if (this.showVariantParts()) {
+        const weightG = Math.round(usedParts.reduce((s, r) => s + (r.weightG || 0), 0) * 10) / 10;
+        const printTimeMin = Math.round(usedParts.reduce((s, r) => s + (r.printTimeMin || 0), 0));
+        this.variantForm.set({ ...this.variantForm(), weightG, printTimeMin, materialNeedG: weightG });
+      }
+      let variantId: string;
       if (editing) {
         await this.catalogService.updateVariant(editing.id, this.variantForm());
+        variantId = editing.id;
       } else {
-        await this.catalogService.createVariant(productId, this.variantForm());
+        variantId = await this.catalogService.createVariant(productId, this.variantForm());
+      }
+      if (this.showVariantParts()) {
+        await this.catalogService.saveVariantParts(
+          variantId,
+          usedParts.map((r) => ({ partId: r.partId, weightG: r.weightG || 0, printTimeMin: r.printTimeMin || 0 })),
+        );
       }
       this.variantDialogVisible.set(false);
       this.variants.set(await this.catalogService.listVariants(productId));
+      this.messages.add({ severity: 'success', summary: 'Variante gespeichert' });
     } catch {
       this.error.set('Variante konnte nicht gespeichert werden.');
     } finally {
@@ -530,6 +610,10 @@ export class AdminProductEditor implements OnInit {
         this.calcReason(),
       );
       this.calcDialogVisible.set(false);
+      // Liste neu laden, damit der neue Preis sofort sichtbar ist (Live-Fund 2026-11-15)
+      const pid = this.productId();
+      if (pid) this.variants.set(await this.catalogService.listVariants(pid));
+      this.messages.add({ severity: 'success', summary: 'Kalkulationsversion angelegt' });
     } catch {
       this.error.set('Kalkulationsversion konnte nicht angelegt werden.');
     } finally {
@@ -541,6 +625,35 @@ export class AdminProductEditor implements OnInit {
     this.calcCosts.update((c) => ({ ...c, [key]: value }));
   }
 
+  partDraft(part: AdminProductPart): string {
+    return this.partNameDrafts()[part.id] ?? part.name;
+  }
+
+  setPartDraft(part: AdminProductPart, name: string): void {
+    this.partNameDrafts.update((d) => ({ ...d, [part.id]: name }));
+  }
+
+  async renamePart(part: AdminProductPart): Promise<void> {
+    const productId = this.productId();
+    const name = this.partDraft(part).trim();
+    if (!productId || !name || name === part.name) return;
+    if (this.parts().some((p) => p.id !== part.id && p.name.toLowerCase() === name.toLowerCase())) {
+      this.error.set('Ein Teil mit diesem Namen gibt es schon.');
+      return;
+    }
+    try {
+      await this.catalogService.renameProductPart(part.id, name);
+      this.parts.set(await this.catalogService.listProductParts(productId));
+      this.partNameDrafts.update((d) => {
+        const { [part.id]: _, ...rest } = d;
+        return rest;
+      });
+      this.messages.add({ severity: 'success', summary: 'Teil umbenannt' });
+    } catch {
+      this.error.set('Teil konnte nicht umbenannt werden.');
+    }
+  }
+
   async addPart(): Promise<void> {
     const productId = this.productId();
     const name = this.newPartName().trim();
@@ -549,6 +662,7 @@ export class AdminProductEditor implements OnInit {
       await this.catalogService.createProductPart(productId, name, this.parts().length + 1);
       this.parts.set(await this.catalogService.listProductParts(productId));
       this.newPartName.set('');
+      this.messages.add({ severity: 'success', summary: 'Teil hinzugefügt' });
     } catch {
       this.error.set('Teil konnte nicht hinzugefügt werden.');
     }

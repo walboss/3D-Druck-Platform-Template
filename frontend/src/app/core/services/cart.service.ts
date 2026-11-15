@@ -17,12 +17,28 @@ export class CartService {
 
   constructor(private readonly supabase: SupabaseClientService) {}
 
+  // localStorage kann fehlen oder werfen (Safari-Privatmodus, gesperrte
+  // Website-Daten). Dann gilt der Token nur bis zum Neuladen (im Speicher).
+  private memoryToken: string | null = null;
+
   private getToken(): string {
-    let token = localStorage.getItem(CART_TOKEN_KEY);
+    let token: string | null = this.memoryToken;
+    if (!token) {
+      try {
+        token = localStorage.getItem(CART_TOKEN_KEY);
+      } catch {
+        token = null;
+      }
+    }
     if (!token) {
       token = crypto.randomUUID();
-      localStorage.setItem(CART_TOKEN_KEY, token);
+      try {
+        localStorage.setItem(CART_TOKEN_KEY, token);
+      } catch {
+        // nur im Speicher halten
+      }
     }
+    this.memoryToken = token;
     return token;
   }
 
@@ -73,7 +89,12 @@ export class CartService {
   }
 
   clearLocalSession(): void {
-    localStorage.removeItem(CART_TOKEN_KEY);
+    this.memoryToken = null;
+    try {
+      localStorage.removeItem(CART_TOKEN_KEY);
+    } catch {
+      // nichts zu entfernen
+    }
     this.itemCount.set(0);
   }
 }

@@ -64,6 +64,7 @@ export class AdminLogin implements OnInit {
   }
 
   async loginWithPassword(): Promise<void> {
+    if (this.loading()) return;
     this.loading.set(true);
     this.error.set(null);
     try {
@@ -93,6 +94,7 @@ export class AdminLogin implements OnInit {
   }
 
   async verifyMfa(): Promise<void> {
+    if (this.loading()) return;
     const code = this.mfaCode().replace(/\s+/g, '');
     if (!this.mfaFactorId || code.length !== 6) {
       this.error.set('Bitte den 6-stelligen Code aus der Authenticator-App eingeben.');

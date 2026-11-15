@@ -35,6 +35,13 @@ export interface MakerworldImportInput {
   // 00198: Platte ("je Platte ein Produkt") und Farbteile
   plateNo?: number | null;
   parts?: { name: string; weightG: number; printTimeMin: number }[];
+  // 00199: Größenbezeichnung der Standard-Variante (Vorschlag aus der
+  // MakerWorld-Beschreibung); null/leer = "Standard".
+  sizeLabel?: string | null;
+  // 00203: Beschreibung (leer = keine)
+  description?: string | null;
+  // 00204: Varianten aus Platten-Gruppen (null = Standard-Variante)
+  variants?: { sizeLabel: string; parts: { name: string; weightG: number; printTimeMin: number }[] }[] | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -70,6 +77,18 @@ export class AdminMakerworldService {
     return result;
   }
 
+  /** „Neu einlesen“ (00202): Produkte des Modells entfernen bzw. deaktivieren. */
+  async resetModel(modelId: string): Promise<{ deleted: number; deactivated: number }> {
+    const actor = await this.identity.getActor();
+    const { data, error } = await this.supabase.client.rpc('fn_makerworld_reset_model', {
+      p_model_id: modelId,
+      p_actor: actor,
+    });
+    if (error) throw error;
+    const r = (data ?? {}) as { deleted?: number; deactivated?: number };
+    return { deleted: r.deleted ?? 0, deactivated: r.deactivated ?? 0 };
+  }
+
   async importProduct(input: MakerworldImportInput): Promise<string> {
     const [actor, adminId] = await Promise.all([this.identity.getActor(), this.currentAdminId()]);
     const { data, error } = await this.supabase.client.rpc('fn_import_makerworld_product', {
@@ -88,6 +107,15 @@ export class AdminMakerworldService {
       p_active: input.active ?? false,
       p_plate_no: input.plateNo ?? null,
       p_parts: (input.parts ?? []).map((p) => ({ name: p.name, weight_g: p.weightG, print_time_min: p.printTimeMin })),
+      p_size_label: input.sizeLabel?.trim() || null,
+      p_description: input.description?.trim() || null,
+      p_variants:
+        input.variants && input.variants.length > 0
+          ? input.variants.map((v) => ({
+              size_label: v.sizeLabel,
+              parts: v.parts.map((p) => ({ name: p.name, weight_g: p.weightG, print_time_min: p.printTimeMin })),
+            }))
+          : null,
     });
     if (error) throw error;
     return data as string;

@@ -141,3 +141,35 @@
   color: var(--app-text-muted);
   font-size: 0.8rem;
 }
+
+/* Positionen ohne Preis (Spec 17 §2, Review A2) */
+.cart-line-total.muted,
+.summary-price.muted {
+  color: var(--app-text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.unpriced-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--app-text-muted);
+  text-align: right;
+}
+
+.payment-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.9rem;
+  color: var(--app-text-muted);
+}
+
+.field-error {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.85rem;
+}

@@ -19,7 +19,7 @@
     <div class="app-card">
       <h2>Deine Positionen</h2>
       <div class="items-list">
-        @for (item of order()!.items; track item.description) {
+        @for (item of order()!.items; track $index) {
           <div class="item-row">
             <span class="item-name">
               {{ item.description }}

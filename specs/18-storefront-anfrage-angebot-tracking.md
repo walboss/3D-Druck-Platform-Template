@@ -7,12 +7,16 @@
 **Elemente:**
 - Beschreibungsfeld (Freitext, optional Referenzbild)
 - Farbmodus-Umschalter: einfarbig oder mehrfarbig (XOR)
-  - Einfarbig: Farbwähler, Hex-Bestfarbabgleich wird VOR dem Absenden als
-    Vorschau angezeigt ("wir ordnen deine Farbe automatisch [X] zu")
+  - Einfarbig: Farbkreise der aktiven Farben (wie auf der Produktseite),
+    OHNE Vorauswahl — der Kunde wählt aktiv eine Farbe (Entscheidung
+    2026-11-14 — Review B16; ersetzt den früheren freien Farbwähler
+    mit Hex-Bestfarbabgleich)
   - Mehrfarbig: Slot-Zuordnung, optional automatisch befüllt durch 3mf-Upload
-    (Limits: max. 50 MB Dateigröße, max. 8 Farbslots)
+    (Limits: max. 50 MB Dateigröße, max. 8 Farbslots). Slots heißen „Slot 1…n"
+    (lückenlos nummeriert); je Slot optional ein Teilename als Hinweis
+    (gespeichert als „Slot n – Name", siehe angebote-individuelle-anfragen.md)
 - Kontaktdaten (Name, Telefon/E-Mail)
-- Absenden → Bestätigung
+- Absenden → Bestätigung mit Knopf „Zum Katalog“
 
 ## 7. Angebotsansicht (Token-Link)
 
@@ -43,3 +47,9 @@
   Datums-/Zeitschätzung, da automatischer FIFO-Retry nicht verlässlich
   vorhersagbar ist
 - Kein direkter View-Zugriff (RLS), ausschließlich über diese Funktion
+- Bestelldatum (orders.created_at, ab Migration 00201 in fn_get_order_by_token)
+- Bei Gesamtstatus „Bereit zur Abholung": deutlicher Abholhinweis
+- Positionsstatus nur einmal anzeigen (Stepper); eigenes Status-Tag je
+  Position nur bei „Storniert". Kein eigener Aktualisieren-Knopf (Neuladen
+  der Seite genügt).
+(Entscheidungen 2026-11-14 — Review B19)

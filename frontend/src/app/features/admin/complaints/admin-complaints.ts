@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -19,15 +19,20 @@ import {
   HandedOverItemOption,
 } from '../../../core/services/admin-complaints.service';
 import { ComplaintDecision } from '../../../core/models/db-types';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
+import { MessageService } from 'primeng/api';
 
 @Component({
   selector: 'app-admin-complaints',
   standalone: true,
-  imports: [DatePipe, FormsModule, TableModule, TagModule, ButtonModule, DialogModule, SelectModule, InputNumberModule, TextareaModule, SkeletonModule, MessageModule],
+  imports: [StatusLabelPipe, DatePipe, FormsModule, TableModule, TagModule, ButtonModule, DialogModule, SelectModule, InputNumberModule, TextareaModule, SkeletonModule, MessageModule],
   templateUrl: './admin-complaints.html',
   styleUrl: './admin-complaints.scss',
 })
 export class AdminComplaints implements OnInit {
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly complaints = signal<ComplaintRow[]>([]);
@@ -93,6 +98,7 @@ export class AdminComplaints implements OnInit {
     try {
       await this.complaintsService.reportComplaint(orderItemId, reason);
       this.reportDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Reklamation erfasst' });
       await this.load();
     } catch {
       this.actionError.set('Reklamation konnte nicht angelegt werden.');
@@ -133,6 +139,7 @@ export class AdminComplaints implements OnInit {
         this.resolveDecision() === 'ersatzproduktion' ? this.resolveReplacementBatchItemId() : null,
       );
       this.resolveDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Reklamation abgeschlossen' });
       await this.load();
     } catch {
       this.actionError.set('Reklamation konnte nicht gelöst werden.');

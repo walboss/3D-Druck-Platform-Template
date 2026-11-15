@@ -3,9 +3,12 @@
 #
 # Content-Security-Policy scharf seit 2026-09-26 (vorher Report-Only; Live-
 # Klicktest Shop, Checkout mit Turnstile, Admin ohne Verstoesse). Quellen:
-#   script-src  sha256-lb1i… = Theme-Skript in src/index.html (bei Aenderung
-#               des Skripts neu berechnen!), sha256-Mhtp… + 'unsafe-hashes' =
-#               onload="this.media='all'" aus Angulars Critical-CSS-Inlining,
+#   script-src  sha256-O9rx… = Theme-Skript in src/index.html (einzeilig, damit
+#               der Hash nicht von Zeilenenden/OS abhaengt; bei Aenderung des
+#               Skripts neu berechnen: Hash des <script>-Inhalts in
+#               dist/frontend/browser/index.html nach dem Build!). Kein
+#               Critical-CSS-Inlining mehr (angular.json inlineCritical=false),
+#               daher kein onload-/beasties-Skript und kein 'unsafe-hashes'.
 #               challenges.cloudflare.com = Turnstile
 #   style-src   'unsafe-inline' = PrimeNG/Angular-Inline-Styles
 #   font-src    Schrift Inter selbst gehostet (@fontsource/inter, kein Google)
@@ -18,4 +21,18 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-lb1iy4GeWwSdf+xOnOnfgZDYJZPHl6qwdewr4x0su4s=' 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://DEINE-PROJECT-ID.supabase.co wss://DEINE-PROJECT-ID.supabase.co https://3d-druck-platform-api.DEINE-SUBDOMAIN.workers.dev; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-O9rxi4k4HjRI7caFaAIkBUhHy0MP666W6C+knwxPHZM=' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://DEINE-PROJECT-ID.supabase.co wss://DEINE-PROJECT-ID.supabase.co https://3d-druck-platform-api.DEINE-SUBDOMAIN.workers.dev; frame-src https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+
+# Langzeit-Cache NUR fuer Build-Dateien mit Hash im Namen (Review L4). Jede
+# Aenderung erzeugt einen neuen Dateinamen, daher gefahrlos "immutable".
+# index.html, Logo, favicon, robots.txt usw. bleiben bei max-age=0.
+/chunk-*
+  Cache-Control: public, max-age=31536000, immutable
+/main-*
+  Cache-Control: public, max-age=31536000, immutable
+/styles-*
+  Cache-Control: public, max-age=31536000, immutable
+/polyfills-*
+  Cache-Control: public, max-age=31536000, immutable
+/media/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -7,7 +7,7 @@
 } @else if (request()) {
   <div class="header-row">
     <h1>Individualanfrage</h1>
-    <p-tag [value]="request()!.status" [severity]="statusSeverity(request()!.status)" />
+    <p-tag [value]="request()!.status | statusLabel" [severity]="statusSeverity(request()!.status)" />
   </div>
 
   <div class="detail-box">
@@ -59,7 +59,7 @@
     <div class="offer-list">
       @for (offer of request()!.offers; track offer.id) {
         <div class="offer-row">
-          <span>{{ offer.status }}</span>
+          <span>{{ offer.status | statusLabel }}</span>
           <span>gültig bis {{ offer.validUntil | date: 'dd.MM.yyyy' }}</span>
           <p-button size="small" severity="secondary" [text]="true" icon="pi pi-copy" label="Link kopieren" (click)="copyLink('/angebot/' + offer.secureToken)"></p-button>
         </div>
@@ -122,11 +122,11 @@
           <div class="grid-3">
             <div class="form-field">
               <label>Menge</label>
-              <p-inputnumber [ngModel]="item.qty" (ngModelChange)="updateItemQty($index, $event)" [min]="1" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.qty" (ngModelChange)="updateItemQty($index, $event)" [min]="1" />
             </div>
             <div class="form-field">
               <label>Marge (%)</label>
-              <p-inputnumber [ngModel]="item.marginPercent" (ngModelChange)="updateItemMargin($index, $event)" suffix=" %" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.marginPercent" (ngModelChange)="updateItemMargin($index, $event)" suffix=" %" />
             </div>
             <div class="form-field">
               <label>Grund</label>
@@ -136,35 +136,35 @@
           <div class="grid-2">
             <div class="form-field">
               <label>Filamentkosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.filament_cost" (ngModelChange)="updateItemCost($index, 'filament_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.filament_cost" (ngModelChange)="updateItemCost($index, 'filament_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Energiekosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.energy_cost" (ngModelChange)="updateItemCost($index, 'energy_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.energy_cost" (ngModelChange)="updateItemCost($index, 'energy_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Maschinenkosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.machine_cost" (ngModelChange)="updateItemCost($index, 'machine_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.machine_cost" (ngModelChange)="updateItemCost($index, 'machine_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Arbeitskosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.labor_cost" (ngModelChange)="updateItemCost($index, 'labor_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.labor_cost" (ngModelChange)="updateItemCost($index, 'labor_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Verpackungskosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.packaging_cost" (ngModelChange)="updateItemCost($index, 'packaging_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.packaging_cost" (ngModelChange)="updateItemCost($index, 'packaging_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Lizenzkosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.license_cost" (ngModelChange)="updateItemCost($index, 'license_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.license_cost" (ngModelChange)="updateItemCost($index, 'license_cost', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Ausschusszuschlag</label>
-              <p-inputnumber [ngModel]="item.costComponents.scrap_allowance" (ngModelChange)="updateItemCost($index, 'scrap_allowance', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.scrap_allowance" (ngModelChange)="updateItemCost($index, 'scrap_allowance', $event)" mode="currency" currency="EUR" />
             </div>
             <div class="form-field">
               <label>Sonstige Kosten</label>
-              <p-inputnumber [ngModel]="item.costComponents.other_cost" (ngModelChange)="updateItemCost($index, 'other_cost', $event)" mode="currency" currency="EUR" />
+              <p-inputnumber locale="de-DE" [ngModel]="item.costComponents.other_cost" (ngModelChange)="updateItemCost($index, 'other_cost', $event)" mode="currency" currency="EUR" />
             </div>
           </div>
         </div>

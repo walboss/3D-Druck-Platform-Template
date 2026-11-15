@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -18,7 +18,8 @@ import { MessageModule } from 'primeng/message';
 
 import { FilamentService, SpoolAvailability, FilamentProductOption, FilamentProductDetail } from '../../../core/services/filament.service';
 import { AdminInventoryService, BWareEligibleItem, MovementRow } from '../../../core/services/admin-inventory.service';
-import { AdminCatalogService } from '../../../core/services/admin-catalog.service';
+import { AdminColorFinishService } from '../../../core/services/admin-color-finish.service';
+import { MessageService } from 'primeng/api';
 
 const BASE_MANUFACTURERS = ['Jayo', 'Bambulab'];
 
@@ -65,6 +66,9 @@ function parseDateOnly(value: string): Date {
   styleUrl: './admin-inventory.scss',
 })
 export class AdminInventory implements OnInit {
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly spools = signal<SpoolAvailability[]>([]);
@@ -118,7 +122,7 @@ export class AdminInventory implements OnInit {
   constructor(
     private readonly filamentService: FilamentService,
     private readonly inventoryService: AdminInventoryService,
-    private readonly catalogService: AdminCatalogService,
+    private readonly catalogService: AdminColorFinishService,
   ) {}
 
   ngOnInit(): void {
@@ -163,6 +167,7 @@ export class AdminInventory implements OnInit {
     try {
       await this.inventoryService.recordInboundMovement(spoolId, amount, this.inboundNote().trim() || null);
       this.inboundDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Wareneingang erfasst' });
       await this.load();
     } catch {
       this.actionError.set('Wareneingang konnte nicht erfasst werden.');
@@ -189,6 +194,7 @@ export class AdminInventory implements OnInit {
     try {
       await this.inventoryService.bookBWare(item.batchItemId, qty, note);
       this.bWareDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'B-Ware erfasst' });
       await this.load();
     } catch {
       this.actionError.set('B-Ware-Buchung fehlgeschlagen.');
@@ -307,6 +313,7 @@ export class AdminInventory implements OnInit {
         newId = await this.filamentService.createFilamentProduct(input);
       }
       this.filamentDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Filament gespeichert' });
       await this.loadFilamentProducts();
       if (!editingId && this.reopenSpoolDialogAfterFilamentCreate) {
         this.spoolFilamentProductId.set(newId);
@@ -391,6 +398,7 @@ export class AdminInventory implements OnInit {
         await this.filamentService.createSpool(input);
       }
       this.spoolDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Spule gespeichert' });
       await this.load();
     } catch {
       this.spoolError.set(editingId ? 'Spule konnte nicht gespeichert werden.' : 'Spule konnte nicht angelegt werden.');

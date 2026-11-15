@@ -13,12 +13,76 @@
         size="small"
       />
     </div>
+    @if (analysisHint(); as hint) {
+      <p class="mapping-ai"><i class="pi pi-sparkles"></i> {{ hint }}</p>
+    }
+    @if (multicolor().length > 0) {
+      <p class="mapping-warn">
+        <i class="pi pi-palette"></i>
+        Platte {{ multicolor().join(', ') }} druckt mehrere Farben gleichzeitig (AMS). Zusatzfarbe mit × entfernen,
+        wenn einfarbig gedruckt werden soll.
+      </p>
+    }
+    @if (viewerUrl(); as url) {
+      <a class="viewer-link" [href]="url" target="_blank" rel="noopener noreferrer">
+        <i class="pi pi-box"></i> 3D-Ansicht auf MakerWorld <i class="pi pi-external-link"></i>
+      </a>
+    }
 
     @if (showAreaNames()) {
       <p class="mapping-hint">
         Teil-Namen vergeben, z. B. „Stiel“ und „Kopf“. <strong>Gleicher Name = gleiches Teil</strong> (Gramm und Zeit
         werden addiert). Der Kunde wählt später je Teil die Farbe.
       </p>
+    }
+
+    @if (state().mode === 'variants') {
+      <div class="variant-groups">
+        <p class="mapping-hint">
+          Jede Variante ist eine Alternative, die der Kunde wählt (z. B. „Einteilig“ / „Zweifarbig“). Platten je Variante
+          anklicken; gleiche Teil-Namen werden innerhalb einer Variante addiert.
+        </p>
+        @for (group of groups(); track $index; let gi = $index) {
+          <div class="variant-group">
+            <input
+              type="text"
+              pInputText
+              class="variant-name"
+              placeholder="Variantenname"
+              [ngModel]="group.name"
+              (ngModelChange)="setGroupName(gi, $event)"
+              [disabled]="disabled()"
+            />
+            <div class="variant-plates">
+              @for (plate of plates(); track plate.plateNo) {
+                <button
+                  type="button"
+                  class="plate-chip"
+                  [class.plate-chip-on]="group.plateNos.includes(plate.plateNo)"
+                  [attr.aria-pressed]="group.plateNos.includes(plate.plateNo)"
+                  [disabled]="disabled()"
+                  (click)="toggleGroupPlate(gi, plate.plateNo)"
+                >
+                  Platte {{ plate.plateNo }}
+                </button>
+              }
+            </div>
+            <button
+              type="button"
+              class="area-btn"
+              title="Variante entfernen"
+              aria-label="Variante entfernen"
+              [disabled]="disabled() || groups().length <= 1"
+              (click)="removeGroup(gi)"
+            >
+              <i class="pi pi-trash"></i>
+            </button>
+          </div>
+        }
+        <button type="button" class="add-variant" [disabled]="disabled()" (click)="addGroup()">
+          <i class="pi pi-plus"></i> Variante hinzufügen
+        </button>
+      </div>
     }
 
     <div class="plates">
@@ -40,6 +104,9 @@
                 }
                 Platte {{ plate.plateNo }}
               </span>
+              @if (labelOf(plate); as label) {
+                <span class="plate-label" [title]="plate.name ? 'Original: ' + plate.name : ''">{{ label }}</span>
+              }
               <span class="plate-meta">{{ formatMinutes(plate.printMinutes) }} · {{ plate.weightG ?? '–' }} g</span>
             </div>
           </div>
@@ -58,9 +125,30 @@
           }
 
           @for (area of areasOf(plate.plateNo); track area.key) {
+            @if (isRemoved(area.key)) {
+              <div class="area area-removed">
+                <span class="swatch" [style.background]="area.color ?? 'transparent'" [title]="area.color ?? ''"></span>
+                <span class="area-meta"><s>{{ area.type ?? 'Filament' }} · {{ area.usedG }} g</s> → zu {{ targetLabel(area) }}</span>
+                <button
+                  type="button"
+                  class="area-btn"
+                  title="Farbe wiederherstellen"
+                  aria-label="Farbe wiederherstellen"
+                  [disabled]="disabled()"
+                  (click)="restoreArea(area.key); $event.stopPropagation()"
+                >
+                  <i class="pi pi-undo"></i>
+                </button>
+              </div>
+            } @else {
             <div class="area">
               <span class="swatch" [style.background]="area.color ?? 'transparent'" [title]="area.color ?? ''"></span>
-              <span class="area-meta">{{ area.type ?? 'Filament' }} · {{ area.usedG }} g</span>
+              <span class="area-meta">
+                {{ area.type ?? 'Filament' }} · {{ area.usedG }} g
+                @if (addedG(area) > 0) {
+                  <span class="area-added">+{{ addedG(area) }} g</span>
+                }
+              </span>
               @if (showAreaNames()) {
                 <input
                   type="text"
@@ -74,7 +162,20 @@
                   (click)="$event.stopPropagation()"
                 />
               }
+              @if (state().mode !== 'combined' && canRemove(area)) {
+                <button
+                  type="button"
+                  class="area-btn"
+                  title="Farbe entfernen – Gramm gehen an die größte Farbe der Platte"
+                  aria-label="Farbe entfernen"
+                  [disabled]="disabled()"
+                  (click)="removeArea(area.key); $event.stopPropagation()"
+                >
+                  <i class="pi pi-times"></i>
+                </button>
+              }
             </div>
+            }
           }
         </div>
       }

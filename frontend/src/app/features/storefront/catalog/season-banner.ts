@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+import { SizedImage } from '../../../shared/sized-image/sized-image';
 
 export interface SeasonBannerData {
   key: string;
@@ -12,6 +13,7 @@ export interface SeasonBannerData {
 @Component({
   selector: 'app-season-banner',
   standalone: true,
+  imports: [SizedImage],
   templateUrl: './season-banner.html',
   styleUrl: './season-banner.scss',
 })

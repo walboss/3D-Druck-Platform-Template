@@ -21,10 +21,12 @@ import { LikesService } from '../../../core/services/likes.service';
 import { StockFinish, StockOptionsService } from '../../../core/services/stock-options.service';
 import { SimilarProducts } from './similar-products';
 
+import { SizedImage } from '../../../shared/sized-image/sized-image';
 @Component({
   selector: 'app-product-detail',
   standalone: true,
   imports: [
+    SizedImage,
     CurrencyPipe,
     FormsModule,
     RouterLink,
@@ -60,6 +62,13 @@ export class ProductDetail implements OnInit {
 
   readonly product = signal<CatalogProduct | null>(null);
   readonly parts = signal<ProductPart[]>([]);
+  // Teile je Variante (z. B. Pinguin „Einteilig“ vs. „Zweifarbig“); ohne
+  // Eintrag gelten alle Teile.
+  private readonly partIdsByVariant = signal<Record<string, string[]>>({});
+  readonly activeParts = computed<ProductPart[]>(() => {
+    const ids = this.partIdsByVariant()[this.selectedVariantId() ?? ''];
+    return ids && ids.length > 0 ? this.parts().filter((p) => ids.includes(p.id)) : this.parts();
+  });
   readonly isMulticolor = signal(false);
   readonly galleryIndex = signal(0);
   private touchStartX: number | null = null;
@@ -80,10 +89,11 @@ export class ProductDetail implements OnInit {
   // Migration 00171) -- global für jedes Produkt gleich, kein
   // per-Produkt-Freigabeschritt mehr (Entscheidung 2026-09-20).
   readonly availableColors = this.stockOptions.colors;
+  readonly colorsLoadFailed = this.stockOptions.loadFailed;
 
   readonly colorPickKeys = computed<{ key: string; label: string }[]>(() => {
     if (this.isMulticolor()) {
-      return this.parts().map((p) => ({ key: p.id, label: p.name }));
+      return this.activeParts().map((p) => ({ key: p.id, label: p.name }));
     }
     return [{ key: 'whole', label: '' }];
   });
@@ -114,7 +124,6 @@ export class ProductDetail implements OnInit {
   ngOnInit(): void {
     // Tab-Titel = Produktname (passt zur Link-Vorschau des Workers), beim
     // Verlassen wieder "Mein 3D-Druck".
-    this.destroyRef.onDestroy(() => this.titleService.setTitle('Mein 3D-Druck'));
     // paramMap statt snapshot: Klick auf ein ähnliches Produkt bleibt in
     // derselben Komponente, nur die ID wechselt.
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
@@ -139,6 +148,7 @@ export class ProductDetail implements OnInit {
       this.product.set(detail.product);
       this.titleService.setTitle(`${detail.product.name} – Mein 3D-Druck`);
       this.parts.set(detail.parts);
+      this.partIdsByVariant.set(detail.partIdsByVariant);
       this.isMulticolor.set(detail.isMulticolor);
       this.galleryIndex.set(0);
 
@@ -172,13 +182,12 @@ export class ProductDetail implements OnInit {
     }
   }
 
-  openSimilar(product: CatalogProduct): void {
-    this.router.navigate(['/produkt', product.product_id]);
-  }
-
   private async loadLike(productId: string): Promise<void> {
     try {
-      const [counts, likedIds] = await Promise.all([this.likesService.getCounts(), this.likesService.getMyLikedIds()]);
+      const [counts, likedIds] = await Promise.all([
+        this.likesService.getCounts([productId]),
+        this.likesService.getMyLikedIds(),
+      ]);
       const product = this.product();
       if (!product) return;
       product.likesCount = counts.get(productId) ?? 0;
@@ -247,7 +256,7 @@ export class ProductDetail implements OnInit {
       const finishByPart = this.selectedFinishByPart();
 
       const configurationDraft = this.isMulticolor()
-        ? this.parts().map((p) => ({
+        ? this.activeParts().map((p) => ({
             product_part_id: p.id,
             color_id: colorByPart[p.id],
             finish_id: finishByPart[p.id],
@@ -281,8 +290,26 @@ export class ProductDetail implements OnInit {
     this.router.navigate(['/katalog']);
   }
 
-  goBack(): void {
-    this.location.back();
+  retryColors(): void {
+    void this.stockOptions.load();
+  }
+
+  /**
+   * Fester Link auf /katalog (Review B9): Wer über einen geteilten Link kommt,
+   * bleibt im Shop. Gab es vorher schon eine Navigation in der App, geht es
+   * per history.back() zurück, damit Filter und Scrollposition im Katalog
+   * erhalten bleiben. Angular zählt die Navigationen in history.state.
+   * Strg-/Mittelklick bleibt normaler Link (neuer Tab).
+   */
+  goBack(event: MouseEvent): void {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+    event.preventDefault();
+    const navigationId = (this.location.getState() as { navigationId?: number } | null)?.navigationId ?? 1;
+    if (navigationId > 1) {
+      this.location.back();
+    } else {
+      void this.router.navigateByUrl('/katalog');
+    }
   }
 
   // p-galleria (PrimeNG 22) hat keinen Touch-Swipe auf dem Hauptbild mehr eingebaut

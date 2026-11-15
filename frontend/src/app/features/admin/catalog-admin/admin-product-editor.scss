@@ -99,13 +99,21 @@
 
 .image-row {
   display: flex;
+  /* Am Handy umbrechen: Link-Feld volle Breite, darunter Auswahl + Papierkorb (Review F1). */
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   align-items: center;
+
+  p-select {
+    flex: 1 1 10rem;
+    min-width: 0;
+  }
 }
 
 .image-url {
-  flex: 1;
+  flex: 1 1 14rem;
+  min-width: 0;
 }
 
 .variant-list,
@@ -163,4 +171,107 @@
 
 .mb-2 {
   margin-bottom: 0.5rem;
+}
+
+.image-thumb {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-hover);
+  color: var(--app-text-muted);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.reimport-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 1rem;
+
+  small {
+    flex: 1 1 16rem;
+    color: var(--p-text-muted-color);
+  }
+}
+
+.variant-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.75rem 0 1rem;
+
+  > small {
+    color: var(--p-text-muted-color);
+  }
+}
+
+.variant-part-row {
+  display: grid;
+  grid-template-columns: auto 1fr 6.5rem 6.5rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-part-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:host ::ng-deep .vp-input {
+  width: 100%;
+}
+
+.variant-sums {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.part-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.part-no {
+  flex: none;
+  min-width: 1.5rem;
+}
+
+.part-name-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Review F11: am breiten Bildschirm Stammdaten links, Bilder rechts */
+.editor-columns {
+  display: block;
+}
+
+@media (min-width: 1100px) {
+  .editor-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 2.5rem;
+    align-items: start;
+  }
+
+  .editor-main .form-field,
+  .editor-side .form-field {
+    max-width: none;
+  }
 }

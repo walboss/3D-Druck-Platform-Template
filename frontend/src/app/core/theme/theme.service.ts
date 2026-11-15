@@ -27,7 +27,11 @@ export class ThemeService {
   toggle(): void {
     this.explicit = true;
     const next: AppTheme = this.theme() === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(STORAGE_KEY, next);
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Speicher gesperrt: Umschalten gilt nur bis zum Neuladen
+    }
     this.set(next);
   }
 
@@ -41,7 +45,12 @@ export class ThemeService {
   }
 
   private readStored(): AppTheme | null {
-    const value = localStorage.getItem(STORAGE_KEY);
+    let value: string | null = null;
+    try {
+      value = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      // Speicher gesperrt: System-Einstellung gilt
+    }
     return value === 'light' || value === 'dark' ? value : null;
   }
 }

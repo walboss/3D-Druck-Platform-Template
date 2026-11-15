@@ -2,6 +2,11 @@ import { Injectable } from '@angular/core';
 import { SupabaseClientService } from './supabase-client.service';
 import { OrderItemStatus, OrderStatus } from '../models/db-types';
 
+export interface ConfirmOrderResult {
+  order_status: OrderStatus | null;
+  items: { order_item_id: string; status: OrderItemStatus; reserved: boolean }[];
+}
+
 export interface AdminOrderListRow {
   id: string;
   order_number: string;
@@ -233,9 +238,11 @@ export class AdminOrdersService {
     if (error) throw error;
   }
 
-  async confirmOrder(orderId: string): Promise<void> {
-    const { error } = await this.supabase.client.rpc('fn_confirm_order', { p_order_id: orderId });
+  /** Bestätigt die Bestellung; Rückgabe = Ergebnisübersicht von fn_confirm_order (Migration 00186). */
+  async confirmOrder(orderId: string): Promise<ConfirmOrderResult> {
+    const { data, error } = await this.supabase.client.rpc('fn_confirm_order', { p_order_id: orderId });
     if (error) throw error;
+    return (data ?? { order_status: null, items: [] }) as ConfirmOrderResult;
   }
 
   async getAssignableProductionOrders(): Promise<{ id: string; status: string; planned_start: string }[]> {

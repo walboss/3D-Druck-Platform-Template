@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -23,6 +23,9 @@ import {
 import { FilamentService, SpoolAvailability } from '../../../core/services/filament.service';
 import { AdminProductionService } from '../../../core/services/admin-production.service';
 import { OrderItemStatus, OrderStatus } from '../../../core/models/db-types';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
+import { MessageService } from 'primeng/api';
+import { confirmOrderSummary } from '../../../core/utils/order-confirm-summary';
 
 interface SpoolAssignmentRow {
   spoolId: string | null;
@@ -32,7 +35,7 @@ interface SpoolAssignmentRow {
 @Component({
   selector: 'app-admin-order-detail',
   standalone: true,
-  imports: [
+  imports: [StatusLabelPipe, 
     CurrencyPipe,
     DatePipe,
     FormsModule,
@@ -54,7 +57,14 @@ export class AdminOrderDetail implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly actionError = signal<string | null>(null);
-  readonly actionRunning = signal(false);
+  /** Welche Aktion gerade läuft -- nur dieser Knopf dreht, die übrigen sind gesperrt (Review C25). */
+  readonly runningAction = signal<string | null>(null);
+  readonly actionRunning = computed(() => this.runningAction() !== null);
+  private readonly messages = inject(MessageService);
+
+  private toastSuccess(summary: string, detail?: string): void {
+    this.messages.add({ severity: 'success', summary, detail, life: detail ? 6000 : 3000 });
+  }
   readonly order = signal<OrderDetailModel | null>(null);
 
   private orderId!: string;
@@ -144,15 +154,16 @@ export class AdminOrderDetail implements OnInit {
   }
 
   async confirmOrder(): Promise<void> {
-    this.actionRunning.set(true);
+    this.runningAction.set('confirm');
     this.actionError.set(null);
     try {
-      await this.ordersService.confirmOrder(this.orderId);
+      const result = await this.ordersService.confirmOrder(this.orderId);
       await this.load();
+      this.toastSuccess('Bestellung bestätigt', confirmOrderSummary(result) || undefined);
     } catch (e) {
       this.actionError.set(this.extractMessage(e, 'Bestellung konnte nicht bestätigt werden.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
@@ -186,7 +197,7 @@ export class AdminOrderDetail implements OnInit {
   async confirmAssign(): Promise<void> {
     const item = this.assignTargetItem();
     if (!item || !this.canConfirmAssign()) return;
-    this.actionRunning.set(true);
+    this.runningAction.set('assign');
     this.actionError.set(null);
     this.assignError.set(null);
     try {
@@ -200,10 +211,11 @@ export class AdminOrderDetail implements OnInit {
       await this.ordersService.assignToProduction(item.orderItemId, productionOrderId!);
       this.assignDialogVisible.set(false);
       await this.load();
+      this.toastSuccess('Position der Produktion zugeordnet');
     } catch (e) {
       this.assignError.set(this.extractMessage(e, 'Zuordnung zur Produktion fehlgeschlagen.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
@@ -234,29 +246,31 @@ export class AdminOrderDetail implements OnInit {
       .map((r) => ({ spool_id: r.spoolId!, amount_g: r.amountG }));
     if (assignments.length === 0) return;
 
-    this.actionRunning.set(true);
+    this.runningAction.set('reproduction');
     this.actionError.set(null);
     try {
       await this.ordersService.addPositionToRunningOrder(item.orderItemId, assignments);
       this.reproductionDialogVisible.set(false);
       await this.load();
+      this.toastSuccess('Nachproduktion angelegt');
     } catch (e) {
       this.actionError.set(this.extractMessage(e, 'Nachproduktion konnte nicht angelegt werden.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
   async readyForPickup(): Promise<void> {
-    this.actionRunning.set(true);
+    this.runningAction.set('ready');
     this.actionError.set(null);
     try {
       await this.ordersService.readyForPickup(this.orderId);
       await this.load();
+      this.toastSuccess('Bestellung ist bereit zur Abholung');
     } catch (e) {
       this.actionError.set(this.extractMessage(e, 'Nicht alle Positionen sind fertig.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
@@ -266,7 +280,7 @@ export class AdminOrderDetail implements OnInit {
   }
 
   async confirmHandover(): Promise<void> {
-    this.actionRunning.set(true);
+    this.runningAction.set('handover');
     this.actionError.set(null);
     try {
       const adminId = await this.ordersService.getCurrentAdminId();
@@ -277,10 +291,11 @@ export class AdminOrderDetail implements OnInit {
       await this.ordersService.handOverOrder(this.orderId, adminId, this.handoverNote().trim() || null);
       this.handoverDialogVisible.set(false);
       await this.load();
+      this.toastSuccess('Übergabe gespeichert');
     } catch (e) {
       this.actionError.set(this.extractMessage(e, 'Übergabe fehlgeschlagen.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
@@ -299,7 +314,7 @@ export class AdminOrderDetail implements OnInit {
   async confirmCancel(): Promise<void> {
     const reason = this.cancelReason().trim();
     if (!reason) return;
-    this.actionRunning.set(true);
+    this.runningAction.set('cancel');
     this.actionError.set(null);
     try {
       const itemId = this.cancelTargetItemId();
@@ -310,10 +325,11 @@ export class AdminOrderDetail implements OnInit {
       }
       this.cancelDialogVisible.set(false);
       await this.load();
+      this.toastSuccess('Storniert');
     } catch (e) {
       this.actionError.set(this.extractMessage(e, 'Stornierung fehlgeschlagen.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 
@@ -375,16 +391,17 @@ export class AdminOrderDetail implements OnInit {
       color_id: sel[p.key ?? ''].colorId!,
       finish_id: sel[p.key ?? ''].finishId!,
     }));
-    this.actionRunning.set(true);
+    this.runningAction.set('color');
     this.colorError.set(null);
     try {
       await this.ordersService.changeItemConfiguration(item.orderItemId, map, reason);
       this.colorDialogVisible.set(false);
       await this.load();
+      this.toastSuccess('Farbe geändert');
     } catch (e) {
       this.colorError.set(this.extractMessage(e, 'Farbe konnte nicht geändert werden.'));
     } finally {
-      this.actionRunning.set(false);
+      this.runningAction.set(null);
     }
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -15,6 +15,7 @@ import { AdminCatalogService } from '../../../core/services/admin-catalog.servic
 import { AdminCategorySeasonsService } from '../../../core/services/admin-category-seasons.service';
 import { AdminSettingsService } from '../../../core/services/admin-settings.service';
 import { CategorySeason, currentSeasons, formatSeasonRange, isInSeason } from '../../../core/utils/season.util';
+import { MessageService } from 'primeng/api';
 
 // "TT.MM" bzw. "TT.MM." — gültige Tage je Monat (29.02. erlaubt).
 const DATE_PATTERN = /^(\d{1,2})\.(\d{1,2})\.?$/;
@@ -51,6 +52,9 @@ function parseDayMonth(value: string): { day: number; month: number } | null {
   styleUrl: './admin-category-seasons.scss',
 })
 export class AdminCategorySeasons implements OnInit {
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly seasons = signal<CategorySeason[]>([]);
@@ -204,6 +208,7 @@ export class AdminCategorySeasons implements OnInit {
         await this.seasonsService.create(input);
       }
       this.dialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Saison gespeichert' });
       await this.load();
     } catch {
       this.dialogError.set(this.editingId() ? 'Speichern fehlgeschlagen.' : 'Anlegen fehlgeschlagen.');

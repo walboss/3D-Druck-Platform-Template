@@ -16,6 +16,7 @@
       <h2>Wunschliste/Anfrage wurde übermittelt</h2>
       <p>Wir melden uns, sobald wir sie geprüft haben.</p>
     }
+    <p-button label="Zum Katalog" icon="pi pi-th-large" routerLink="/katalog" styleClass="mt-3"></p-button>
   </div>
 } @else {
   <div class="form-wrap">
@@ -57,7 +58,7 @@
 
         <div class="form-field">
           <label>Menge *</label>
-          <p-inputnumber
+          <p-inputnumber locale="de-DE"
             [(ngModel)]="qty"
             [invalid]="attempted() && invalidQty()"
             [min]="1"
@@ -89,16 +90,22 @@
 
       @if (colorMode() === 'einfarbig') {
         <div class="form-field color-field">
-          <label>Farbe wählen *</label>
-          <div class="color-pick-row">
-            <input type="color" [(ngModel)]="singleColorHex" class="color-input" aria-label="Farbe" />
-            <span class="color-hex">{{ singleColorHex() }}</span>
+          <label>Farbe wählen *@if (selectedColor(); as c) {: <span class="selected-color-name">{{ c.name }}</span>}</label>
+          <div class="swatch-row" role="radiogroup" aria-label="Farbe">
+            @for (color of colors(); track color.id) {
+              <button
+                type="button"
+                class="swatch"
+                role="radio"
+                [attr.aria-checked]="singleColorId() === color.id"
+                [class.selected]="singleColorId() === color.id"
+                [style.background]="color.hex ?? '#ccc'"
+                [title]="color.name"
+                [attr.aria-label]="color.name"
+                (click)="singleColorId.set(color.id)"
+              ></button>
+            }
           </div>
-          @if (bestMatchColor()) {
-            <p-message severity="info" styleClass="mt-2">
-              Wir ordnen deine Farbe automatisch "{{ bestMatchColor()!.name }}" zu.
-            </p-message>
-          }
         </div>
 
         <div class="form-field">
@@ -120,10 +127,20 @@
           @if (attempted() && invalidColor()) {
             <p class="hint hint-error">Bitte mindestens einen Farbslot anlegen.</p>
           }
-          <p class="hint">Ordne jedem Teil deines Modells eine Farbe zu.</p>
+          <p class="hint">Ordne jedem Teil deines Modells eine Farbe zu. Den Teilenamen kannst du optional dazuschreiben.</p>
           @for (slot of slots(); track $index) {
             <div class="slot-row">
-              <input type="text" pInputText [value]="slot.label" disabled class="slot-label" />
+              <span class="slot-label">{{ slot.label }}</span>
+              <input
+                type="text"
+                pInputText
+                class="slot-name"
+                maxlength="40"
+                placeholder="Teil (optional), z. B. Kopf"
+                [value]="slot.name ?? ''"
+                (input)="updateSlotName($index, $any($event.target).value)"
+                [attr.aria-label]="slot.label + ' – Teilename (optional)'"
+              />
               <input
                 type="color"
                 [value]="slot.hex"
@@ -156,7 +173,10 @@
         </div>
         <div class="form-field">
           <label for="email">E-Mail</label>
-          <input id="email" type="email" pInputText autocomplete="email" [(ngModel)]="email" [invalid]="attempted() && invalidContact()" />
+          <input id="email" type="email" pInputText autocomplete="email" [(ngModel)]="email" [invalid]="(attempted() && invalidContact()) || (email().trim() !== '' && invalidEmail())" />
+          @if (email().trim() !== '' && invalidEmail()) {
+            <small class="hint hint-error">Bitte eine gültige E-Mail-Adresse eingeben.</small>
+          }
         </div>
       </div>
       <p class="hint">

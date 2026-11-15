@@ -131,9 +131,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  justify-content: center;
+  /* Tippziel mind. 44 × 44 px (Review B11); negativer Rand hält die
+     Kartenzeile so niedrig wie vorher. */
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.75rem -0.5rem -0.75rem 0;
   border: none;
+  border-radius: 999px;
   background: transparent;
-  padding: 0.1rem 0.2rem;
+  padding: 0 0.5rem;
   color: var(--app-text-muted);
   font-size: 0.8rem;
   cursor: pointer;

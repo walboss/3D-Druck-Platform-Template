@@ -8,16 +8,18 @@
       <h1>Bestätigungscode</h1>
       <p class="mfa-hint">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
 
+      <form (ngSubmit)="verifyMfa()">
       <div class="form-field">
-        <label>Code</label>
+        <label for="mfaCode">Code</label>
         <input
+          id="mfaCode"
+          name="mfaCode"
           type="text"
           inputmode="numeric"
           autocomplete="one-time-code"
           maxlength="6"
           pInputText
           [(ngModel)]="mfaCode"
-          (keyup.enter)="verifyMfa()"
           autofocus
         />
       </div>
@@ -26,8 +28,9 @@
         <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
       }
 
-      <p-button label="Bestätigen" icon="pi pi-check" [loading]="loading()" (click)="verifyMfa()" styleClass="w-full" class="login-btn"></p-button>
-      <p-button label="Abbrechen" severity="secondary" [text]="true" (click)="cancelMfa()" styleClass="w-full" class="login-btn"></p-button>
+      <p-button type="submit" label="Bestätigen" icon="pi pi-check" [loading]="loading()" styleClass="w-full" class="login-btn"></p-button>
+      <p-button type="button" label="Abbrechen" severity="secondary" [text]="true" (click)="cancelMfa()" styleClass="w-full" class="login-btn"></p-button>
+      </form>
     </div>
   </div>
 } @else {
@@ -35,17 +38,21 @@
     <div class="login-card">
       <h1>Admin-Login</h1>
 
+      <!-- Echtes Formular mit name/autocomplete, damit Passwortmanager funktionieren (Review C26). -->
+      <form (ngSubmit)="loginWithPassword()">
       <div class="form-field">
-        <label>E-Mail</label>
-        <input type="email" pInputText [(ngModel)]="email" (keyup.enter)="loginWithPassword()" />
+        <label for="loginEmail">E-Mail</label>
+        <input id="loginEmail" name="email" type="email" autocomplete="username" pInputText [(ngModel)]="email" />
       </div>
       <div class="form-field">
-        <label>Passwort</label>
+        <label for="loginPassword">Passwort</label>
         <p-password
+          inputId="loginPassword"
+          name="password"
+          autocomplete="current-password"
           [(ngModel)]="password"
           [feedback]="false"
           [toggleMask]="true"
-          (keyup.enter)="loginWithPassword()"
         />
       </div>
 
@@ -53,7 +60,8 @@
         <p-message severity="error" styleClass="mb-2">{{ error() }}</p-message>
       }
 
-      <p-button label="Anmelden" icon="pi pi-sign-in" [loading]="loading()" (click)="loginWithPassword()" styleClass="w-full" class="login-btn"></p-button>
+      <p-button type="submit" label="Anmelden" icon="pi pi-sign-in" [loading]="loading()" styleClass="w-full" class="login-btn"></p-button>
+      </form>
 
       <div class="divider"><span>oder</span></div>
 

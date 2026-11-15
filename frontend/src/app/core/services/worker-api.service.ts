@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PricingService } from './pricing.service';
-import { MakerworldPlate } from '../utils/makerworld-plates.util';
+import { MakerworldPlate, PlateAnalysis } from '../utils/makerworld-plates.util';
 
 export interface MakerworldImportResult {
   estimatedPrintMinutes: number | null;
@@ -16,6 +16,14 @@ export interface MakerworldImportResult {
   tags: string[];
   tagsDe: string[];
   category: string | null;
+  // Größen-Vorschlag aus der Beschreibung (z. B. "60 mm"), fehlt bei älterem Worker.
+  sizeHint?: string | null;
+  // Eigener Beschreibungs-Vorschlag (KI, Entscheidung 2026-11-14); fehlt bei älterem Worker
+  descriptionDe?: string | null;
+  // Alle Druckprofile des Modells (Profilauswahl im Import); fehlt bei älterem Worker
+  profiles?: PrintProfileOption[];
+  // KI-Einordnung der Platten (Vorschlag); fehlt bei älterem Worker oder 1 Platte
+  plateAnalysis?: PlateAnalysis | null;
   // 00198: Druckplatten (leer, wenn MakerWorld keine liefert)
   plates: MakerworldPlate[];
   // Druckprofil, aus dem Werte/Platten stammen (Standard-Drucker bevorzugt);
@@ -25,9 +33,23 @@ export interface MakerworldImportResult {
     isTargetPrinter: boolean;
     printer: string | null;
     title: string | null;
+    // Fehlt bei älterem Worker-Stand
+    profileId?: number | null;
   } | null;
   modelId: string;
   sourceUrl: string;
+}
+
+// Druckprofil eines MakerWorld-Modells (Profilauswahl im Import, 2026-11-15)
+export interface PrintProfileOption {
+  id: number;
+  printer: string | null;
+  title: string | null;
+  plateCount: number;
+  // mindestens eine Platte druckt mehrere Filamente gleichzeitig (AMS)
+  multicolor: boolean;
+  // Profil des Standard-Druckers
+  isTarget: boolean;
 }
 
 // Spec 27 §4: Antwort von POST /api/vorschlag.
@@ -92,13 +114,30 @@ export class WorkerApiService {
   // für die Produkt-Stammdaten. Authentifizierter Admin-Vorgang
   // (Supabase-Access-Token statt Turnstile) — accessToken kommt aus
   // AuthService.session()?.access_token.
-  async importMakerworldEstimates(accessToken: string, makerworldUrl: string): Promise<MakerworldImportResult> {
+  async importMakerworldEstimates(
+    accessToken: string,
+    makerworldUrl: string,
+    profileId: number | null = null,
+  ): Promise<MakerworldImportResult> {
     return firstValueFrom(
       this.http.post<MakerworldImportResult>(
         `${environment.workerApiUrl}/api/admin/import-makerworld`,
-        { makerworldUrl },
+        profileId ? { makerworldUrl, profileId } : { makerworldUrl },
         { headers: { Authorization: `Bearer ${accessToken}` } },
       ),
     );
+  }
+
+  /** Kurze KI-Beschreibung für ein bestehendes Produkt (Katalogpflege). */
+  async generateDescription(
+    accessToken: string,
+    input: { title: string; tags: string[]; sizeHint: string | null; parts: string[] },
+  ): Promise<string> {
+    const res = await firstValueFrom(
+      this.http.post<{ description: string }>(`${environment.workerApiUrl}/api/admin/beschreibung`, input, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    );
+    return res.description;
   }
 }

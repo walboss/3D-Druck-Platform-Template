@@ -1,4 +1,4 @@
-<button type="button" (click)="goBack()" class="back-link"><i class="pi pi-arrow-left"></i> Zurück zum Katalog</button>
+<a href="/katalog" (click)="goBack($event)" class="back-link"><i class="pi pi-arrow-left"></i> Zurück zum Katalog</a>
 
 @if (error()) {
   <p-message severity="error">{{ error() }}</p-message>
@@ -15,11 +15,11 @@
   <div class="detail-grid">
     <div class="gallery-col">
       @if (product()!.images.length > 0) {
+        <!-- Nur Pfeile + Thumbnails; der Punkte-Balken verdeckte den Bildrand (Review B17) -->
         <p-galleria
           [value]="product()!.images"
           [showThumbnails]="product()!.images.length > 1"
-          [showIndicators]="product()!.images.length > 1"
-          [showIndicatorsOnItem]="true"
+          [showIndicators]="false"
           [showItemNavigators]="product()!.images.length > 1"
           [circular]="true"
           [containerStyle]="{ 'max-width': '100%' }"
@@ -28,7 +28,8 @@
         >
           <ng-template #item let-image>
             <img
-              [src]="image.url"
+              [appSizedSrc]="image.url"
+              [appSizedWidth]="1200"
               [alt]="product()!.name"
               class="gallery-image"
               (touchstart)="onGalleryTouchStart($event)"
@@ -36,7 +37,7 @@
             />
           </ng-template>
           <ng-template #thumbnail let-image>
-            <img [src]="image.url" [alt]="product()!.name" class="gallery-thumb" />
+            <img [appSizedSrc]="image.url" [appSizedWidth]="200" [alt]="product()!.name" class="gallery-thumb" />
           </ng-template>
         </p-galleria>
       } @else {
@@ -55,7 +56,9 @@
           (click)="toggleLike()"
         >
           <i [class]="product()!.likedByMe ? 'pi pi-heart-fill' : 'pi pi-heart'"></i>
-          <span>{{ product()!.likesCount }}</span>
+          @if (product()!.likesCount > 0) {
+            <span>{{ product()!.likesCount }}</span>
+          }
         </button>
       </div>
       @if (product()!.category?.trim()) {
@@ -82,6 +85,13 @@
               </button>
             }
           </div>
+        </div>
+      }
+
+      @if (colorsLoadFailed() && colorPickKeys().length > 0) {
+        <div class="colors-error" role="alert">
+          <p-message severity="error">Farben konnten nicht geladen werden.</p-message>
+          <p-button label="Erneut versuchen" icon="pi pi-refresh" [outlined]="true" (click)="retryColors()"></p-button>
         </div>
       }
 
@@ -124,7 +134,7 @@
       <div class="field-block">
         <label>Menge</label>
         @if (selectedVariant()) {
-          <p-inputnumber
+          <p-inputnumber locale="de-DE"
             [ngModel]="qty()"
             (ngModelChange)="qty.set($event)"
             [min]="selectedVariant()!.min_qty"
@@ -182,7 +192,7 @@
   </div>
 
   @if (similarProducts().length > 0) {
-    <app-similar-products [products]="similarProducts()" [showPrices]="showPrices()" (selected)="openSimilar($event)" />
+    <app-similar-products [products]="similarProducts()" [showPrices]="showPrices()" />
   }
 
 }

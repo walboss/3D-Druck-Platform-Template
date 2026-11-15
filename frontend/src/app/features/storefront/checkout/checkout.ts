@@ -11,16 +11,17 @@ import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
 import { MessageService } from 'primeng/api';
 
-import { CartService, RawCartItem } from '../../../core/services/cart.service';
-import { SupabaseClientService } from '../../../core/services/supabase-client.service';
+import { CartService } from '../../../core/services/cart.service';
+import { CartDetailsService } from '../../../core/services/cart-details.service';
 import { WorkerApiService } from '../../../core/services/worker-api.service';
 import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
 import { PricingService } from '../../../core/services/pricing.service';
-import { StockOptionsService } from '../../../core/services/stock-options.service';
-import { parseConfigurationDraft, formatConfigurationLabel } from '../../../core/utils/cart-configuration.util';
 import { LEGAL_PAGES_ENABLED } from '../../../core/legal-pages';
+import { priceSummary, unpricedHint } from '../../../core/utils/price-summary.util';
+import { isEmailFormatValid } from '../../../core/utils/email.util';
 
 interface CheckoutRow {
+  cartItemId: string;
   productName: string;
   sizeLabel: string;
   configLabel: string;
@@ -42,6 +43,7 @@ export class Checkout implements OnInit {
   readonly legalPagesEnabled = LEGAL_PAGES_ENABLED;
   readonly messageMaxLength = 500;
   readonly customerMessage = signal('');
+  private readonly cartDetails = inject(CartDetailsService);
   private readonly pricing = inject(PricingService);
   readonly showPrices = this.pricing.showPrices;
   readonly qtyInvalidLabel = this.pricing.qtyInvalidLabel;
@@ -54,17 +56,7 @@ export class Checkout implements OnInit {
   readonly cartSessionId = signal<string | null>(null);
   readonly rows = signal<CheckoutRow[]>([]);
 
-  readonly searchPhone = signal('');
-  readonly searchEmail = signal('');
-  readonly searching = signal(false);
-  readonly searchDone = signal(false);
-  readonly customerFound = signal(false);
-  readonly searchValidationError = signal(false);
-  // Eigenes Turnstile-Token für die Kundensuche (OFFENE-SECURITY-FIXES.md §5)
-  // — ein Token gilt nur einmal, das Bestell-Token bleibt davon unberührt.
-  readonly searchTurnstileToken = signal<string | null>(null);
-  readonly searchError = signal(false);
-  private readonly searchTurnstile = viewChild<TurnstileWidget>('searchTurnstile');
+  private readonly orderTurnstile = viewChild<TurnstileWidget>('orderTurnstile');
 
   readonly firstName = signal('');
   readonly lastName = signal('');
@@ -73,7 +65,8 @@ export class Checkout implements OnInit {
 
   readonly turnstileToken = signal<string | null>(null);
 
-  readonly total = computed(() => this.rows().reduce((sum, r) => sum + (r.finalPrice ?? 0) * r.qty, 0));
+  readonly summary = computed(() => priceSummary(this.rows()));
+  readonly unpricedHint = unpricedHint;
 
   readonly hasQtyViolation = computed(() =>
     this.rows().some(
@@ -90,24 +83,57 @@ export class Checkout implements OnInit {
   // 2026-09-21).
   readonly contactRequired = this.pricing.showPrices;
 
+  // Fehlendes rot markieren und auflisten statt nur grauem Knopf (Review B13,
+  // gleiches Muster wie die Individualanfrage).
+  readonly attempted = signal(false);
+  readonly invalidFirstName = computed(() => !this.firstName().trim());
+  readonly invalidLastName = computed(() => this.lastNameRequired() && !this.lastName().trim());
+  readonly invalidContact = computed(
+    () => this.contactRequired() && !this.phone().trim() && !this.email().trim(),
+  );
+  readonly invalidEmail = computed(() => !isEmailFormatValid(this.email()));
+
+  readonly missingFields = computed(() => {
+    const missing: string[] = [];
+    if (this.invalidFirstName()) missing.push('Vorname');
+    if (this.invalidLastName()) missing.push('Nachname');
+    if (this.invalidContact()) missing.push('Telefon oder E-Mail');
+    if (this.invalidEmail()) missing.push('gültige E-Mail-Adresse');
+    return missing;
+  });
+
   readonly canSubmit = computed(
     () =>
       this.rows().length > 0 &&
       !this.hasQtyViolation() &&
-      this.firstName().trim().length > 0 &&
-      (!this.lastNameRequired() || this.lastName().trim().length > 0) &&
-      (!this.contactRequired() || this.phone().trim().length > 0 || this.email().trim().length > 0) &&
+      this.missingFields().length === 0 &&
       this.turnstileToken() !== null &&
       !this.submitting(),
   );
 
+  /** Knopf nur bei echten Blockern gesperrt; fehlende Angaben meldet onSubmitClick. */
+  readonly submitBlocked = computed(() => this.submitting() || this.rows().length === 0 || this.hasQtyViolation());
+
+  onSubmitClick(): void {
+    this.attempted.set(true);
+    const missing = this.missingFields();
+    if (missing.length > 0) {
+      this.error.set(`Bitte noch ausfüllen: ${missing.join(', ')}.`);
+      return;
+    }
+    if (!this.turnstileToken()) {
+      this.error.set('Bitte bestätige zuerst die Sicherheitsabfrage.');
+      return;
+    }
+    this.error.set(null);
+    void this.submitOrder();
+  }
+
   constructor(
     private readonly cartService: CartService,
-    private readonly supabase: SupabaseClientService,
     private readonly workerApi: WorkerApiService,
     private readonly router: Router,
     private readonly messageService: MessageService,
-    private readonly stockOptions: StockOptionsService,
   ) {}
 
   ngOnInit(): void {
@@ -118,60 +144,23 @@ export class Checkout implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const [{ cartSessionId, items }] = await Promise.all([this.cartService.getCart(), this.stockOptions.load()]);
-      if (!cartSessionId || items.length === 0) {
+      const { cartSessionId, rows } = await this.cartDetails.load();
+      if (!cartSessionId || rows.length === 0) {
         this.router.navigate([this.pricing.listPath()]);
         return;
       }
       this.cartSessionId.set(cartSessionId);
-
-      const variantIds = Array.from(new Set(items.map((i) => i.variant.id)));
-      const { data, error } = await this.supabase.client
-        .from('v_catalog')
-        .select('variant_id, final_price')
-        .in('variant_id', variantIds);
-      if (error) throw error;
-      const priceByVariant = new Map((data ?? []).map((r) => [r['variant_id'], r['final_price']]));
-
-      const colorNameById = new Map(this.stockOptions.colors().map((c) => [c.id, c.name]));
-      const finishNameById = new Map(this.stockOptions.finishes().map((f) => [f.id, f.name]));
-
-      const draftsByProduct = items.map((i) => ({
-        productId: i.product.id,
-        entries: parseConfigurationDraft(i.configuration_draft),
-      }));
-      const productIdsWithParts = Array.from(
-        new Set(
-          draftsByProduct
-            .filter((d) => d.entries.some((e) => e.product_part_id !== null))
-            .map((d) => d.productId),
-        ),
-      );
-      let partNameById = new Map<string, string>();
-      if (productIdsWithParts.length > 0) {
-        const { data: parts, error: partsError } = await this.supabase.client
-          .from('product_parts')
-          .select('id, name')
-          .in('product_id', productIdsWithParts);
-        if (partsError) throw partsError;
-        partNameById = new Map((parts ?? []).map((p) => [p['id'], p['name']]));
-      }
-
       this.rows.set(
-        items.map((i: RawCartItem) => ({
-          productName: i.product.name,
-          sizeLabel: i.variant.size_label,
-          configLabel: formatConfigurationLabel(
-            parseConfigurationDraft(i.configuration_draft),
-            colorNameById,
-            finishNameById,
-            partNameById,
-          ),
-          qty: i.qty,
-          minQty: i.variant.min_qty,
-          maxQty: i.variant.max_qty,
-          stepQty: i.variant.step_qty,
-          finalPrice: priceByVariant.get(i.variant.id) ?? null,
+        rows.map((r) => ({
+          cartItemId: r.cartItemId,
+          productName: r.productName,
+          sizeLabel: r.sizeLabel,
+          configLabel: r.configLabel,
+          qty: r.qty,
+          minQty: r.minQty,
+          maxQty: r.maxQty,
+          stepQty: r.stepQty,
+          finalPrice: r.finalPrice,
         })),
       );
     } catch {
@@ -179,44 +168,6 @@ export class Checkout implements OnInit {
     } finally {
       this.loading.set(false);
     }
-  }
-
-  async runCustomerSearch(): Promise<void> {
-    if (!this.searchPhone().trim() && !this.searchEmail().trim()) {
-      this.searchValidationError.set(true);
-      this.searchDone.set(false);
-      return;
-    }
-    const token = this.searchTurnstileToken();
-    if (!token) return;
-    this.searchValidationError.set(false);
-    this.searchError.set(false);
-    this.searching.set(true);
-    try {
-      const found = await this.workerApi.searchCustomer(
-        token,
-        this.searchPhone().trim() || null,
-        this.searchEmail().trim() || null,
-      );
-      this.customerFound.set(found);
-      this.searchDone.set(true);
-    } catch {
-      this.searchDone.set(false);
-      this.searchError.set(true);
-    } finally {
-      this.searching.set(false);
-      // Token ist verbraucht → für die nächste Suche ein neues anfordern.
-      this.searchTurnstileToken.set(null);
-      this.searchTurnstile()?.reset();
-    }
-  }
-
-  onSearchTurnstileVerified(token: string): void {
-    this.searchTurnstileToken.set(token || null);
-  }
-
-  onSearchTurnstileExpired(): void {
-    this.searchTurnstileToken.set(null);
   }
 
   onTurnstileVerified(token: string): void {
@@ -258,6 +209,9 @@ export class Checkout implements OnInit {
         (httpError?.error && (httpError.error.message || httpError.error.error)) ||
         'Anfrage konnte nicht abgeschickt werden. Bitte versuche es erneut.';
       this.error.set(message);
+      // Turnstile-Token ist verbraucht -- für den nächsten Versuch neues anfordern.
+      this.turnstileToken.set(null);
+      this.orderTurnstile()?.reset();
     } finally {
       this.submitting.set(false);
     }

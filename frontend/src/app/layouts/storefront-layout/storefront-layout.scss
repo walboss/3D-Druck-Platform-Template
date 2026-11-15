@@ -106,7 +106,8 @@
   padding: 0 5px;
   border-radius: 999px;
   background: var(--p-primary-color);
-  color: #fff;
+  /* Kontrastfarbe des Themes statt fest Weiß -- im Dark Mode dunkle Schrift auf hellem Teal (Review B12). */
+  color: var(--p-primary-contrast-color, #fff);
   font-size: 0.7rem;
   font-weight: 700;
   line-height: 18px;
@@ -184,10 +185,20 @@
   grid-auto-columns: 1fr;
   height: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--app-header-bg);
-  backdrop-filter: saturate(180%) blur(10px);
-  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  /* Deckender Hintergrund statt backdrop-filter: In iOS Safari wurden bei
+     fester Leiste mit backdrop-filter Icons/Beschriftung beim Scrollen nicht
+     mehr gezeichnet (nur das dunkle Band blieb sichtbar). */
+  background: var(--app-surface);
   border-top: 1px solid var(--app-border);
+  /* Eigene Compositing-Ebene + isolation halten die Leiste beim Scrollen
+     (Safari-Leiste ein-/ausblenden, Momentum-Scroll) stabil. */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  isolation: isolate;
+  /* Leiste bleibt auch beim Tippen/Wischen am Rand klickbar und ruhig. */
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 
 .bottom-nav-item {
@@ -222,4 +233,40 @@
   .bottom-nav {
     display: none;
   }
+}
+
+/* Hinweis, wenn fn_get_public_settings nicht geladen werden konnte */
+.settings-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--app-radius-sm);
+  border: 1px solid var(--p-red-300, #fca5a5);
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 10%, var(--app-surface));
+  color: var(--app-text);
+
+  i {
+    color: var(--p-red-500, #ef4444);
+  }
+}
+
+.settings-retry {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Dark Mode: aktiver Menüpunkt als dezenter Teal-Pill statt hellem Pill (Review B12). */
+:host-context([data-theme='dark']) .nav-link.active {
+  background: color-mix(in srgb, var(--p-primary-color) 18%, transparent);
+  color: var(--p-primary-300, var(--p-primary-color));
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -11,7 +11,8 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { ColorPickerModule } from 'primeng/colorpicker';
 
-import { AdminCatalogService, ColorMasterRow, FinishMasterRow } from '../../../core/services/admin-catalog.service';
+import { AdminColorFinishService, ColorMasterRow, FinishMasterRow } from '../../../core/services/admin-color-finish.service';
+import { MessageService } from 'primeng/api';
 
 const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/;
 
@@ -25,6 +26,9 @@ const HEX_PATTERN = /^#?[0-9a-fA-F]{6}$/;
   styleUrl: './admin-color-finish-list.scss',
 })
 export class AdminColorFinishList implements OnInit {
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly colors = signal<ColorMasterRow[]>([]);
@@ -39,7 +43,7 @@ export class AdminColorFinishList implements OnInit {
   readonly createError = signal<string | null>(null);
   readonly editingColorId = signal<string | null>(null);
 
-  constructor(private readonly catalogService: AdminCatalogService, private readonly router: Router) {}
+  constructor(private readonly catalogService: AdminColorFinishService, private readonly router: Router) {}
 
   ngOnInit(): void {
     this.load();
@@ -137,6 +141,7 @@ export class AdminColorFinishList implements OnInit {
         await this.catalogService.createFinish(name);
       }
       this.createDialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Gespeichert' });
       await this.load();
     } catch {
       this.createError.set(this.editingColorId() ? 'Speichern fehlgeschlagen.' : 'Anlegen fehlgeschlagen.');

@@ -9,7 +9,7 @@
   <p-skeleton height="3rem" styleClass="mb-2" />
   <p-skeleton height="3rem" />
 } @else {
-  <p-table [value]="orders()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+  <p-table [value]="orders()" [rows]="20" [paginator]="true" class="stack-on-mobile">
     <ng-template #header>
       <tr>
         <th>Drucker</th>
@@ -21,11 +21,11 @@
     </ng-template>
     <ng-template #body let-po>
       <tr class="po-row" (click)="openOrder(po)">
-        <td>{{ po.printerName ?? '–' }}</td>
-        <td><p-tag [value]="po.status" [severity]="statusSeverity(po.status)" /></td>
-        <td>{{ po.plannedStart | date: 'dd.MM.yyyy HH:mm' }}</td>
-        <td>{{ po.actualStart ? (po.actualStart | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
-        <td>{{ po.actualEnd ? (po.actualEnd | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
+        <td data-label="Drucker">{{ po.printerName ?? '–' }}</td>
+        <td data-label="Status"><p-tag [value]="po.status | statusLabel" [severity]="statusSeverity(po.status)" /></td>
+        <td data-label="Geplanter Start">{{ po.plannedStart | date: 'dd.MM.yyyy HH:mm' }}</td>
+        <td data-label="Tatsächlicher Start">{{ po.actualStart ? (po.actualStart | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
+        <td data-label="Ende">{{ po.actualEnd ? (po.actualEnd | date: 'dd.MM.yyyy HH:mm') : '–' }}</td>
       </tr>
     </ng-template>
     <ng-template #emptymessage>

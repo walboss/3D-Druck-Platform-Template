@@ -1,0 +1,325 @@
+-- Migration 00204: MakerWorld-Import mit Varianten aus Platten-Alternativen
+--
+-- Entscheidung Betreiber 2026-11-15: Modelle, deren Platten Alternativen sind
+-- (Pinguin "Einteilig" = Platte 1 vs. "Zweifarbig" = Platte 2+3; Laterne
+-- "Motiv 1"/"Motiv 2" je mit Sockel), sollen beim Import direkt als EIN
+-- Produkt mit Varianten angelegt werden (bisher nur von Hand im Editor).
+-- Der Vorschlag kommt von einer KI-Einordnung im Worker, der Admin bestaetigt.
+--
+-- fn_import_makerworld_product (Stand 00203) + p_variants (default NULL):
+--   [{size_label, parts: [{name, weight_g, print_time_min}, ...]}, ...]
+-- Gesetzt -> statt "Standard"-Variante je Eintrag eine Variante; Gewicht/
+-- Druckzeit/Materialbedarf = Summe ihrer Teile. Produktteile = Vereinigung
+-- der Teilnamen; ab zwei Namen mehrfarbig mit variant_parts je Variante
+-- (Teile je Variante, Spec produkte-varianten-farben §2), sonst ohne Teile.
+-- p_parts/p_size_label werden dann ignoriert. Sonst unveraendert.
+--
+-- Rollback: Funktion aus 00203 erneut einspielen (vorher diese droppen).
+
+drop function fn_import_makerworld_product(text, text, text, text, jsonb, text[], text, numeric, numeric, text, uuid, uuid, boolean, int, jsonb, text, text);
+
+create function fn_import_makerworld_product(
+  p_model_id       text,
+  p_url            text,
+  p_original_title text,
+  p_name           text,
+  p_images         jsonb,
+  p_tags           text[],
+  p_category       text,
+  p_weight_g       numeric,
+  p_print_time_min numeric,
+  p_actor          text,
+  p_suggestion_id  uuid default null,
+  p_admin_id       uuid default null,
+  p_active         boolean default false,
+  p_plate_no       int     default null,
+  p_parts          jsonb   default null,
+  p_size_label     text    default null,
+  p_description    text    default null,
+  p_variants       jsonb   default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_model_id   text    := nullif(trim(p_model_id), '');
+  v_url        text    := nullif(trim(p_url), '');
+  v_name       text    := nullif(trim(p_name), '');
+  v_orig_title text    := nullif(trim(p_original_title), '');
+  v_category   text    := nullif(trim(p_category), '');
+  v_images     jsonb   := coalesce(p_images, '[]'::jsonb);
+  v_tags       text[]  := coalesce(p_tags, '{}'::text[]);
+  v_weight     numeric := greatest(coalesce(p_weight_g, 0), 0);
+  v_print_min  numeric := greatest(coalesce(p_print_time_min, 0), 0);
+  v_active     boolean := coalesce(p_active, false);
+  v_now        timestamptz := now();
+  v_product_id uuid;
+  v_variant_id uuid;
+  v_img        jsonb;
+  v_sugg_status product_suggestion_status;
+  v_existing   boolean := false;
+  v_plate_no   int     := p_plate_no;
+  v_parts      jsonb   := coalesce(p_parts, '[]'::jsonb);
+  v_part       jsonb;
+  v_part_id    uuid;
+  v_sort       int     := 0;
+  v_multicolor boolean;
+  v_size_label text    := coalesce(nullif(trim(p_size_label), ''), 'Standard');
+  v_description text   := nullif(left(trim(p_description), 2000), '');
+  -- 00204: Varianten aus Platten-Alternativen
+  v_variants   jsonb   := coalesce(p_variants, '[]'::jsonb);
+  v_var        jsonb;
+  v_vpart      jsonb;
+  v_part_names text[]  := '{}';
+  v_vname      text;
+  v_label      text;
+  v_vweight    numeric;
+  v_vminutes   numeric;
+begin
+  -- 1. Pflichtfelder ----------------------------------------------------------
+  if v_model_id is null or v_model_id !~ '^[0-9]+$' then
+    raise exception 'fn_import_makerworld_product: model_id muss numerisch sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if v_url is null then
+    raise exception 'fn_import_makerworld_product: url darf nicht leer sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if v_name is null then
+    raise exception 'fn_import_makerworld_product: name darf nicht leer sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if nullif(trim(p_actor), '') is null then
+    raise exception 'fn_import_makerworld_product: actor darf nicht leer sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if p_admin_id is not null and not exists (select 1 from admins a where a.id = p_admin_id) then
+    raise exception 'fn_import_makerworld_product: Admin % existiert nicht', p_admin_id
+      using errcode = 'invalid_parameter_value';
+  end if;
+
+  -- 2. images-Format pruefen (datenmodell-v1.md: [{url, source_type}]) ------------
+  -- 00198: Platte und Farbteile ---------------------------------------------
+  if v_plate_no is not null and v_plate_no < 1 then
+    raise exception 'fn_import_makerworld_product: plate_no muss >= 1 sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if jsonb_typeof(v_parts) <> 'array' then
+    raise exception 'fn_import_makerworld_product: parts muss ein JSON-Array sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  for v_part in select * from jsonb_array_elements(v_parts) loop
+    if jsonb_typeof(v_part) <> 'object'
+       or nullif(trim(v_part->>'name'), '') is null
+       or coalesce((v_part->>'weight_g')::numeric, -1) < 0
+       or coalesce((v_part->>'print_time_min')::numeric, -1) < 0 then
+      raise exception 'fn_import_makerworld_product: jedes Teil braucht name, weight_g >= 0 und print_time_min >= 0'
+        using errcode = 'invalid_parameter_value';
+    end if;
+  end loop;
+  if (select count(distinct lower(trim(e->>'name'))) from jsonb_array_elements(v_parts) e)
+     <> jsonb_array_length(v_parts) then
+    raise exception 'fn_import_makerworld_product: Teilnamen müssen eindeutig sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  -- Ein einzelnes "Teil" ist kein Farbteil → einfarbig wie bisher.
+  v_multicolor := jsonb_array_length(v_parts) >= 2;
+
+  -- 00204: Varianten (z. B. Pinguin "Einteilig"/"Zweifarbig", Laterne
+  -- "Motiv 1"/"Motiv 2"). Jede Variante = eigene Teile-Liste; Produktteile =
+  -- Vereinigung der Teilnamen (Reihenfolge des ersten Auftretens). Ab zwei
+  -- verschiedenen Teilnamen mehrfarbig, sonst Varianten ohne Teile.
+  if jsonb_typeof(v_variants) <> 'array' then
+    raise exception 'fn_import_makerworld_product: variants muss ein JSON-Array sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  if jsonb_array_length(v_variants) > 0 then
+    for v_var in select * from jsonb_array_elements(v_variants) loop
+      if jsonb_typeof(v_var) <> 'object'
+         or nullif(trim(v_var->>'size_label'), '') is null
+         or jsonb_typeof(v_var->'parts') <> 'array'
+         or jsonb_array_length(v_var->'parts') = 0 then
+        raise exception 'fn_import_makerworld_product: jede Variante braucht size_label und mindestens ein Teil'
+          using errcode = 'invalid_parameter_value';
+      end if;
+      for v_vpart in select * from jsonb_array_elements(v_var->'parts') loop
+        if jsonb_typeof(v_vpart) <> 'object'
+           or nullif(trim(v_vpart->>'name'), '') is null
+           or coalesce((v_vpart->>'weight_g')::numeric, -1) < 0
+           or coalesce((v_vpart->>'print_time_min')::numeric, -1) < 0 then
+          raise exception 'fn_import_makerworld_product: jedes Varianten-Teil braucht name, weight_g >= 0 und print_time_min >= 0'
+            using errcode = 'invalid_parameter_value';
+        end if;
+        if not exists (select 1 from unnest(v_part_names) n where lower(n) = lower(trim(v_vpart->>'name'))) then
+          v_part_names := v_part_names || trim(v_vpart->>'name');
+        end if;
+      end loop;
+    end loop;
+    if (select count(distinct lower(trim(e->>'size_label'))) from jsonb_array_elements(v_variants) e)
+       <> jsonb_array_length(v_variants) then
+      raise exception 'fn_import_makerworld_product: Variantennamen müssen eindeutig sein'
+        using errcode = 'invalid_parameter_value';
+    end if;
+    v_multicolor := coalesce(array_length(v_part_names, 1), 0) >= 2;
+  end if;
+
+  if jsonb_typeof(v_images) <> 'array' then
+    raise exception 'fn_import_makerworld_product: images muss ein JSON-Array sein'
+      using errcode = 'invalid_parameter_value';
+  end if;
+  for v_img in select * from jsonb_array_elements(v_images) loop
+    if jsonb_typeof(v_img) <> 'object'
+       or nullif(trim(v_img->>'url'), '') is null
+       or (v_img->>'source_type') not in ('extern_link', 'eigenes_hosting') then
+      raise exception 'fn_import_makerworld_product: jedes Bild braucht url und source_type (extern_link | eigenes_hosting)'
+        using errcode = 'invalid_parameter_value';
+    end if;
+  end loop;
+
+  -- 3. Vorschlag (falls angegeben) sperren und pruefen -----------------------------
+  if p_suggestion_id is not null then
+    select ps.status into v_sugg_status
+    from product_suggestions ps
+    where ps.id = p_suggestion_id
+    for update;
+
+    if not found then
+      raise exception 'fn_import_makerworld_product: Vorschlag % existiert nicht', p_suggestion_id
+        using errcode = 'invalid_parameter_value';
+    end if;
+    -- 00198: "Je Platte ein Produkt" importiert mehrere Produkte zu einem
+    -- Vorschlag → ein bereits für dieses Modell importierter Vorschlag ist ok.
+    if v_sugg_status = 'importiert'
+       and exists (select 1 from product_suggestions ps
+                   where ps.id = p_suggestion_id and ps.makerworld_model_id = v_model_id) then
+      null;
+    elsif v_sugg_status <> 'neu' then
+      raise exception 'fn_import_makerworld_product: Vorschlag % hat Status % — Import nur aus ''neu''',
+        p_suggestion_id, v_sugg_status
+        using errcode = 'check_violation';
+    end if;
+  end if;
+
+  -- 4. Duplikat-Schutz (Spec 27 §2) ------------------------------------------------
+  select p.id into v_product_id
+  from products p
+  where p.makerworld_model_id = v_model_id
+    and p.makerworld_plate_no is not distinct from v_plate_no;
+
+  if found then
+    v_existing := true;
+  else
+    -- 5. Produkt anlegen (aktiv nur bei Massenimport, Spec massenimport §3.4 —
+    -- sonst inaktiv wie bisher, Spec 27 §2) ------------------------------------
+    insert into products (
+      name, description, category, images, tags, active, is_multicolor,
+      makerworld_model_id, makerworld_url, makerworld_title, makerworld_plate_no
+    )
+    values (
+      v_name, v_description, v_category, v_images, v_tags, v_active, v_multicolor,
+      v_model_id, v_url, v_orig_title, v_plate_no
+    )
+    returning id into v_product_id;
+
+    if jsonb_array_length(v_variants) > 0 then
+      -- 00204: Produktteile einmal anlegen, dann je Variante eigene Teile
+      if v_multicolor then
+        foreach v_vname in array v_part_names loop
+          v_sort := v_sort + 1;
+          insert into product_parts (product_id, name, sort_order)
+          values (v_product_id, v_vname, v_sort);
+        end loop;
+      end if;
+      for v_var in select * from jsonb_array_elements(v_variants) loop
+        v_label := trim(v_var->>'size_label');
+        select coalesce(sum((e->>'weight_g')::numeric), 0), coalesce(sum((e->>'print_time_min')::numeric), 0)
+          into v_vweight, v_vminutes
+        from jsonb_array_elements(v_var->'parts') e;
+
+        insert into product_variants (
+          product_id, size_label, weight_g, print_time_min, work_time_min,
+          material_need_g, min_qty, max_qty, step_qty, active
+        )
+        values (
+          v_product_id, v_label, v_vweight, v_vminutes, 0,
+          v_vweight, 1, 10, 1, true
+        )
+        returning id into v_variant_id;
+
+        if v_multicolor then
+          -- gleiche Teilnamen innerhalb einer Variante zusammenfassen
+          insert into variant_parts (variant_id, product_part_id, weight_g, print_time_min, material_need_g)
+          select v_variant_id, pp.id,
+                 sum((e->>'weight_g')::numeric),
+                 sum((e->>'print_time_min')::numeric),
+                 sum((e->>'weight_g')::numeric)
+          from jsonb_array_elements(v_var->'parts') e
+          join product_parts pp
+            on pp.product_id = v_product_id and lower(pp.name) = lower(trim(e->>'name'))
+          group by pp.id;
+        end if;
+
+        perform fn_write_audit('product_variant', v_variant_id, 'create', null,
+                               null, v_label, 'MakerWorld-Import ' || v_model_id, p_actor);
+      end loop;
+    else
+      -- 6. Standard-Variante (Spec 27 §2) --------------------------------------------
+      insert into product_variants (
+        product_id, size_label, weight_g, print_time_min, work_time_min,
+        material_need_g, min_qty, max_qty, step_qty, active
+      )
+      values (
+        v_product_id, v_size_label, v_weight, v_print_min, 0,
+        v_weight, 1, 10, 1, true
+      )
+      returning id into v_variant_id;
+
+      -- 00198: Farbteile mit Gewicht/Druckzeit je Teil (variant_parts, genutzt
+      -- u. a. von der automatischen Spulenwahl, 00182).
+      if v_multicolor then
+        for v_part in select * from jsonb_array_elements(v_parts) loop
+          v_sort := v_sort + 1;
+          insert into product_parts (product_id, name, sort_order)
+          values (v_product_id, trim(v_part->>'name'), v_sort)
+          returning id into v_part_id;
+
+          insert into variant_parts (variant_id, product_part_id, weight_g, print_time_min, material_need_g)
+          values (v_variant_id, v_part_id,
+                  (v_part->>'weight_g')::numeric,
+                  (v_part->>'print_time_min')::numeric,
+                  (v_part->>'weight_g')::numeric);
+        end loop;
+      end if;
+
+      perform fn_write_audit('product_variant', v_variant_id, 'create', null,
+                             null, v_size_label, 'MakerWorld-Import ' || v_model_id, p_actor);
+    end if;
+
+    perform fn_write_audit('product', v_product_id, 'create', null,
+                           null, v_name, 'MakerWorld-Import ' || v_model_id, p_actor);
+  end if;
+
+  -- 7. Vorschlag abschliessen ---------------------------------------------------------
+  if p_suggestion_id is not null and v_sugg_status = 'neu' then
+    update product_suggestions
+    set status     = 'importiert',
+        product_id = v_product_id,
+        decided_at = v_now,
+        decided_by = p_admin_id
+    where id = p_suggestion_id;
+
+    perform fn_write_audit('product_suggestion', p_suggestion_id, 'status_change', 'status',
+                           'neu', 'importiert',
+                           case when v_existing then 'Produkt bereits vorhanden' else 'importiert' end,
+                           p_actor);
+  end if;
+
+  return v_product_id;
+end;
+$$;
+
+revoke all on function fn_import_makerworld_product(text, text, text, text, jsonb, text[], text, numeric, numeric, text, uuid, uuid, boolean, int, jsonb, text, text, jsonb) from public;
+revoke all on function fn_import_makerworld_product(text, text, text, text, jsonb, text[], text, numeric, numeric, text, uuid, uuid, boolean, int, jsonb, text, text, jsonb) from anon;
+grant execute on function fn_import_makerworld_product(text, text, text, text, jsonb, text[], text, numeric, numeric, text, uuid, uuid, boolean, int, jsonb, text, text, jsonb) to authenticated;

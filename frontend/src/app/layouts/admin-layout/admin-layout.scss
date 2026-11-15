@@ -21,8 +21,7 @@ $topbar-height: 56px;
 }
 
 .menu-btn,
-.close-btn,
-.topbar-shop {
+.close-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -126,7 +125,7 @@ $topbar-height: 56px;
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.7rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 9px;
   color: rgba(255, 255, 255, 0.75);
   text-decoration: none;
@@ -152,26 +151,13 @@ $topbar-height: 56px;
 }
 
 .nav-group-title {
-  margin: 0.9rem 0 0.2rem;
+  margin: 0.75rem 0 0.15rem;
   padding: 0 0.75rem;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.45);
-}
-
-.nav-item-muted {
-  font-size: 0.9rem;
-}
-
-.theme-toggle-item {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
 }
 
 .nav-badge {
@@ -191,15 +177,40 @@ $topbar-height: 56px;
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 1rem 0.6rem 0;
+  padding: 0.75rem 0.6rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-actions {
   display: flex;
-  flex-direction: column;
   gap: 0.5rem;
 }
 
-.logout-btn {
-  display: block;
-  padding: 0 0.15rem;
+.footer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+}
+
+.footer-logout {
+  flex: 1;
 }
 
 /* ---------- Content ---------- */
@@ -236,4 +247,25 @@ $topbar-height: 56px;
     padding: 1.75rem 2rem 3rem;
     max-width: 1400px;
   }
+}
+
+/* Logo wie im Shop, auf hellem Chip damit es auf der dunklen Leiste lesbar bleibt */
+.brand-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 3px 8px;
+  border-radius: 9px;
+  background: #fff;
+
+  img {
+    height: 26px;
+    width: auto;
+    display: block;
+  }
+}
+
+.nav-badge-warn {
+  background: var(--p-orange-500, #f97316);
 }

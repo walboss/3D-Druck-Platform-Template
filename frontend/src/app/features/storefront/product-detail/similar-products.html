@@ -2,10 +2,10 @@
   <h2>Ähnliche Produkte</h2>
   <div class="similar-grid">
     @for (p of products(); track p.product_id) {
-      <a class="similar-card" tabindex="0" (click)="selected.emit(p)" (keyup.enter)="selected.emit(p)">
+      <a class="similar-card" [routerLink]="['/produkt', p.product_id]">
         <div class="similar-image">
           @if (image(p)) {
-            <img [src]="image(p)" [alt]="p.name" loading="lazy" />
+            <img [appSizedSrc]="image(p)" [appSizedWidth]="600" [alt]="p.name" loading="lazy" />
           } @else {
             <i class="pi pi-image"></i>
           }

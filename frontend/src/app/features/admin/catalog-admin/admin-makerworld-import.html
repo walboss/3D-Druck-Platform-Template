@@ -106,6 +106,17 @@
             @if (row.state === 'neu' && row.preview) {
               @if (isLongPrint(row)) { <p-tag severity="warn" icon="pi pi-clock" value="Druckzeit ab 4 h" /> }
               @if (isHeavyPrint(row)) { <p-tag severity="warn" icon="pi pi-box" value="Material ab 200 g" /> }
+              @if (row.preview.plateAnalysis?.confident === false && row.plates.length > 1) {
+                <p-tag severity="warn" icon="pi pi-sparkles" value="KI unsicher" title="Platten-Einordnung bitte prüfen – nicht vorausgewählt." />
+              }
+              @if (multicolorPlates(row).length > 0) {
+                <p-tag
+                  severity="danger"
+                  icon="pi pi-palette"
+                  value="Mehrfarbdruck (AMS)"
+                  [title]="'Platte ' + multicolorPlates(row).join(', ') + ' druckt mehrere Farben gleichzeitig – nicht vorausgewählt. Zusatzfarbe mit × entfernen oder bewusst anhaken.'"
+                />
+              }
               @if (row.preview.printProfile; as profile) {
                 @if (profile.targetPrinter) {
                   @if (profile.isTargetPrinter) {
@@ -116,14 +127,43 @@
                 }
               }
             }
+            @if (row.state === 'neu' && hasSingleColorAlternative(row)) {
+              <p-tag severity="info" icon="pi pi-info-circle" value="Einfarbiges Profil verfügbar" title="Unter „Druckprofil“ ein einfarbiges Profil wählen (Werte dann vom anderen Drucker)." />
+            }
             <a class="row-link" [href]="row.url" target="_blank" rel="noopener">Modell {{ row.modelId }} <i class="pi pi-external-link"></i></a>
           </div>
+          @if (row.state === 'neu' && profileOptions(row).length > 1) {
+            <div class="profile-row">
+              <label [for]="'profile-' + row.modelId">Druckprofil</label>
+              <p-select
+                [inputId]="'profile-' + row.modelId"
+                [options]="profileOptions(row)"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="currentProfileId(row)"
+                (ngModelChange)="changeProfile(row, $event)"
+                [disabled]="row.importState === 'angelegt' || importing()"
+                appendTo="body"
+                styleClass="profile-select"
+              />
+            </div>
+          }
 
           @if (row.state === 'fehler') {
             <p class="row-error">{{ row.error }}</p>
           }
           @if (row.state === 'vorhanden' && row.existingProductId) {
-            <p class="row-hint">Produkt existiert: <a [routerLink]="['/admin/katalog', row.existingProductId]">im Editor öffnen</a></p>
+            <p class="row-hint">
+              Produkt existiert: <a [routerLink]="['/admin/katalog', row.existingProductId]">im Editor öffnen</a>
+            </p>
+            <p-button
+              label="Neu einlesen"
+              icon="pi pi-refresh"
+              severity="secondary"
+              size="small"
+              [disabled]="importing() || loadingPreview()"
+              (click)="reimport(row)"
+            ></p-button>
           }
           @if (row.importState === 'fehler' && row.importError) {
             <p class="row-error">{{ row.importError }}</p>
@@ -151,13 +191,32 @@
                   <small class="row-original">Original: {{ row.preview.tags.join(', ') }}</small>
                 }
               </div>
+              <div class="form-field form-field-wide">
+                <label>Beschreibung</label>
+                <textarea
+                  pTextarea
+                  rows="3"
+                  [ngModel]="row.description"
+                  (ngModelChange)="updateDescription(row, $event)"
+                  [disabled]="row.importState === 'angelegt' || importing()"
+                  class="w-full"
+                  placeholder="Kurzer Text für die Produktseite"
+                ></textarea>
+                <small class="row-original">
+                  @if (row.mapping?.mode === 'perPlate') {
+                    Wird bei „Je Platte ein Produkt“ nicht übernommen.
+                  } @else {
+                    Eigener Vorschlag (KI) aus Titel, Tags, Größe und Teilen – bitte prüfen.
+                  }
+                </small>
+              </div>
             </div>
             <div class="row-meta">
               <span>{{ row.preview.images.length }} Bild(er)</span>
               <span [class.meta-warn]="isHeavyPrint(row)">{{ row.preview.estimatedWeightG ?? '–' }} g</span>
               <span [class.meta-warn]="isLongPrint(row)">{{ formatMinutes(row.preview.estimatedPrintMinutes) }}</span>
               <span>Kategorie: {{ categoryOf(row) ?? '–' }}</span>
-              <span>{{ row.massenimport ? 'wird aktiv angelegt' : 'wird inaktiv angelegt' }}</span>
+              <span>{{ isMassenimport(row) ? 'wird aktiv angelegt' : 'wird inaktiv angelegt' }}</span>
               @if (planSummary(row); as summary) {
                 <strong>{{ summary }}</strong>
               }
@@ -166,6 +225,9 @@
               <app-makerworld-plate-mapping
                 [plates]="row.plates"
                 [allowPerPlate]="true"
+                [viewerUrl]="viewerUrl(row)"
+                [allowVariants]="true"
+                [analysisHint]="analysisHint(row)"
                 [state]="row.mapping"
                 (stateChange)="updateMapping(row, $event)"
                 [disabled]="row.importState === 'angelegt' || importing()"

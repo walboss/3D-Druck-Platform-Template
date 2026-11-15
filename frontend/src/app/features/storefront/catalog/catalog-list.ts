@@ -1,7 +1,7 @@
 import { Component, ElementRef, Injector, OnDestroy, OnInit, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { InputTextModule } from 'primeng/inputtext';
 import { MultiSelectModule } from 'primeng/multiselect';
@@ -26,10 +26,13 @@ const PAGE_SIZE = CATALOG_PAGE_SIZE;
 // "Neu"-Etikett für Produkte, die in den letzten 14 Tagen angelegt wurden.
 const NEW_PRODUCT_DAYS = 14;
 
+import { SizedImage } from '../../../shared/sized-image/sized-image';
+import { catalogQueryParams, parseCatalogQuery } from '../../../core/utils/catalog-query.util';
 @Component({
   selector: 'app-catalog-list',
   standalone: true,
   imports: [
+    SizedImage,
     RouterLink,
     CurrencyPipe,
     FormsModule,
@@ -56,6 +59,8 @@ export class CatalogList implements OnInit, OnDestroy {
   private readonly injector = inject(Injector);
   // Nur bei Browser-/App-"Zurück" (popstate) die alte Scroll-Position setzen.
   private readonly restoreScroll = inject(Router).currentNavigation()?.trigger === 'popstate';
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly searchText = this.state.searchText;
   readonly selectedCategories = this.state.selectedCategories;
@@ -190,7 +195,6 @@ export class CatalogList implements OnInit, OnDestroy {
   constructor(
     private readonly catalogService: CatalogService,
     private readonly likesService: LikesService,
-    private readonly router: Router,
   ) {
     this.observer = new IntersectionObserver(
       (entries) => {
@@ -212,6 +216,23 @@ export class CatalogList implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Filter aus der Adresse übernehmen (geteilter Link / Neuladen), dann jede
+    // Änderung ohne neuen Verlaufseintrag zurückschreiben (Review B20).
+    const fromUrl = parseCatalogQuery(this.route.snapshot.queryParamMap);
+    if (fromUrl.q !== undefined) this.searchText.set(fromUrl.q);
+    if (fromUrl.categories !== undefined) this.selectedCategories.set(fromUrl.categories);
+    if (fromUrl.sort !== undefined) this.sortOption.set(fromUrl.sort);
+    effect(
+      () => {
+        const queryParams = catalogQueryParams({
+          q: this.searchText(),
+          categories: this.selectedCategories(),
+          sort: this.sortOption(),
+        });
+        void this.router.navigate([], { relativeTo: this.route, queryParams, replaceUrl: true });
+      },
+      { injector: this.injector },
+    );
     this.load();
   }
 
@@ -319,10 +340,6 @@ export class CatalogList implements OnInit, OnDestroy {
 
   onFilterChanged(): void {
     this.visibleCount.set(PAGE_SIZE);
-  }
-
-  openProduct(product: CatalogProduct): void {
-    this.router.navigate(['/produkt', product.product_id]);
   }
 
   private readonly newSince = Date.now() - NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;

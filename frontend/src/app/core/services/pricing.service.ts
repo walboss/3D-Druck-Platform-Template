@@ -15,6 +15,8 @@ export class PricingService {
   readonly shopEnabled = signal(false);
   readonly customRequestEnabled = signal(false);
   readonly seasonsEnabled = signal(false);
+  /** true, wenn der letzte Ladeversuch gescheitert ist -- load() versucht es dann erneut. */
+  readonly loadFailed = signal(false);
   private loaded = false;
   private loadPromise: Promise<void> | null = null;
 
@@ -49,19 +51,27 @@ export class PricingService {
   async load(): Promise<void> {
     if (this.loaded) return;
     if (!this.loadPromise) {
-      this.loadPromise = this.fetch();
+      this.loadPromise = this.fetch().finally(() => {
+        // Gescheitert: Promise verwerfen, damit der nächste load() neu versucht.
+        if (!this.loaded) this.loadPromise = null;
+      });
     }
     await this.loadPromise;
   }
 
   private async fetch(): Promise<void> {
-    const { data, error } = await this.supabase.client.rpc('fn_get_public_settings');
-    if (!error && data) {
-      this.showPrices.set(!!data['storefront_prices_visible']);
-      this.shopEnabled.set(!!data['storefront_shop_enabled']);
-      this.customRequestEnabled.set(!!data['storefront_custom_request_enabled']);
-      this.seasonsEnabled.set(!!data['storefront_seasons_enabled']);
-      this.loaded = true;
+    try {
+      const { data, error } = await this.supabase.client.rpc('fn_get_public_settings');
+      if (!error && data) {
+        this.showPrices.set(!!data['storefront_prices_visible']);
+        this.shopEnabled.set(!!data['storefront_shop_enabled']);
+        this.customRequestEnabled.set(!!data['storefront_custom_request_enabled']);
+        this.seasonsEnabled.set(!!data['storefront_seasons_enabled']);
+        this.loaded = true;
+      }
+    } catch {
+      // Netzwerkfehler -- wie Fehlerantwort behandeln.
     }
+    this.loadFailed.set(!this.loaded);
   }
 }

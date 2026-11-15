@@ -17,7 +17,7 @@
         <h2>Farben</h2>
         <p-button size="small" label="Neue Farbe" icon="pi pi-plus" (click)="openCreateDialog('color')"></p-button>
       </div>
-      <p-table [value]="colors()" responsiveLayout="scroll">
+      <p-table [value]="colors()" class="stack-on-mobile">
         <ng-template #header>
           <tr>
             <th>Name</th>
@@ -28,18 +28,18 @@
         </ng-template>
         <ng-template #body let-color>
           <tr>
-            <td>{{ color.name }}</td>
-            <td>
+            <td data-label="Name">{{ color.name }}</td>
+            <td data-label="Hex">
               @if (color.hex) {
                 <span class="swatch" [style.background]="color.hex"></span> {{ color.hex }}
               } @else {
                 –
               }
             </td>
-            <td>
+            <td data-label="Aktiv">
               <p-toggleswitch [ngModel]="color.active" (ngModelChange)="toggleColorActive(color, $event)" />
             </td>
-            <td>
+            <td class="col-actions">
               <p-button size="small" severity="secondary" [text]="true" icon="pi pi-pencil" ariaLabel="Farbe bearbeiten" (click)="openEditColorDialog(color)"></p-button>
             </td>
           </tr>
@@ -55,7 +55,7 @@
         <h2>Finishes</h2>
         <p-button size="small" label="Neues Finish" icon="pi pi-plus" (click)="openCreateDialog('finish')"></p-button>
       </div>
-      <p-table [value]="finishes()" responsiveLayout="scroll">
+      <p-table [value]="finishes()" class="stack-on-mobile">
         <ng-template #header>
           <tr>
             <th>Name</th>
@@ -64,8 +64,8 @@
         </ng-template>
         <ng-template #body let-finish>
           <tr>
-            <td>{{ finish.name }}</td>
-            <td>
+            <td data-label="Name">{{ finish.name }}</td>
+            <td data-label="Aktiv">
               <p-toggleswitch [ngModel]="finish.active" (ngModelChange)="toggleFinishActive(finish, $event)" />
             </td>
           </tr>

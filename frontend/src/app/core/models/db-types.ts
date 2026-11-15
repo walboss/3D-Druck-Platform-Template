@@ -41,6 +41,8 @@ export interface VCatalogRow {
   max_qty: number;
   step_qty: number;
   final_price: number | null;
+  // 00205: Anlagedatum des Produkts (Sortierung „Neueste“, Badge „Neu“)
+  created_at?: string;
 }
 
 export interface CatalogProduct {
@@ -89,6 +91,8 @@ export interface OrderTrackingItem {
 export interface OrderTrackingResult {
   order_number: string;
   status: OrderStatus;
+  /** ab Migration 00201 */
+  created_at?: string | null;
   confirmed_at: string | null;
   finished_at: string | null;
   ready_for_pickup_at: string | null;

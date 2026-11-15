@@ -23,3 +23,13 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 10
   period = 60
+
+# Review D31: oeffentliche Schreib-Endpunkte (Bestellung/Wunschliste,
+# Individualanfrage, Vorschlag) je IP und Pfad, max. 20 Anfragen pro Minute.
+[[ratelimits]]
+name = "API_LIMITER"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60

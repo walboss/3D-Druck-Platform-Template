@@ -7,7 +7,7 @@
 } @else if (detail()) {
   <div class="header-row">
     <h1>Produktionsauftrag</h1>
-    <p-tag [value]="detail()!.status" [severity]="statusSeverity(detail()!.status)" />
+    <p-tag [value]="detail()!.status | statusLabel" [severity]="statusSeverity(detail()!.status)" />
   </div>
   <p class="meta">
     Drucker: {{ detail()!.printerName ?? '–' }} · Geplant:
@@ -56,9 +56,9 @@
     </ul>
   }
 
-  <h2 class="mt-4">Batch-Items</h2>
+  <h2 class="mt-4">Positionen im Druckauftrag</h2>
   @if (detail()!.batchItems.length === 0) {
-    <p class="tile-empty">Noch keine Batch-Items (Produktion noch nicht gestartet).</p>
+    <p class="tile-empty">Noch keine Positionen (Produktion noch nicht gestartet).</p>
   } @else {
     <div class="batch-list">
       @for (item of detail()!.batchItems; track item.id) {
@@ -112,7 +112,7 @@
         >
           <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
         </p-select>
-        <p-inputnumber [(ngModel)]="assignment.amountG" suffix=" g" [min]="0" class="amount-input" />
+        <p-inputnumber locale="de-DE" [(ngModel)]="assignment.amountG" suffix=" g" [min]="0" class="amount-input" />
       </div>
     </div>
   }
@@ -126,15 +126,15 @@
   <div class="qty-fields">
     <div class="form-field">
       <label>Erfolgreich</label>
-      <p-inputnumber [(ngModel)]="qtySuccess" [min]="0" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="qtySuccess" [min]="0" />
     </div>
     <div class="form-field">
       <label>Ausschuss (regulär)</label>
-      <p-inputnumber [(ngModel)]="qtyScrapNormal" [min]="0" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="qtyScrapNormal" [min]="0" />
     </div>
     <div class="form-field">
       <label>Ausschuss (Reklamation)</label>
-      <p-inputnumber [(ngModel)]="qtyScrapComplaint" [min]="0" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="qtyScrapComplaint" [min]="0" />
     </div>
   </div>
 
@@ -152,8 +152,8 @@
       >
         <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
       </p-select>
-      <p-inputnumber [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" placeholder="Verbrauch" />
-      <p-inputnumber [(ngModel)]="row.scrapAmountG" suffix=" g Fehldruck" [min]="0" class="amount-input" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" placeholder="Verbrauch" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="row.scrapAmountG" suffix=" g Fehldruck" [min]="0" class="amount-input" />
       <p-button severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Zeile entfernen" (click)="removeMaterialUsageRow($index)"></p-button>
     </div>
   }

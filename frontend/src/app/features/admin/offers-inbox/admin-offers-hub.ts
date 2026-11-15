@@ -14,11 +14,12 @@ import { FormsModule } from '@angular/forms';
 
 import { AdminOffersService, CustomRequestListRow, OfferListRow } from '../../../core/services/admin-offers.service';
 import { CustomRequestStatus, OfferStatus } from '../../../core/models/db-types';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
 
 @Component({
   selector: 'app-admin-offers-hub',
   standalone: true,
-  imports: [DatePipe, FormsModule, TabsModule, TableModule, TagModule, ButtonModule, SkeletonModule, MessageModule, DialogModule, TextareaModule],
+  imports: [StatusLabelPipe, DatePipe, FormsModule, TabsModule, TableModule, TagModule, ButtonModule, SkeletonModule, MessageModule, DialogModule, TextareaModule],
   templateUrl: './admin-offers-hub.html',
   styleUrl: './admin-offers-hub.scss',
 })

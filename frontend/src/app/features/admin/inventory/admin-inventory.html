@@ -152,7 +152,7 @@
   </div>
   <div class="form-field">
     <label>Menge (g) *</label>
-    <p-inputnumber [ngModel]="inboundAmount()" (ngModelChange)="inboundAmount.set($event)" [min]="1" suffix=" g" />
+    <p-inputnumber locale="de-DE" [ngModel]="inboundAmount()" (ngModelChange)="inboundAmount.set($event)" [min]="1" suffix=" g" />
   </div>
   <div class="form-field">
     <label>Notiz</label>
@@ -170,7 +170,7 @@
 <p-dialog header="B-Ware buchen" [(visible)]="bWareDialogVisible" [modal]="true" [style]="{ width: '420px' }">
   <div class="form-field">
     <label>Menge *</label>
-    <p-inputnumber [ngModel]="bWareQty()" (ngModelChange)="bWareQty.set($event)" [min]="1" [max]="bWareTarget()?.bookableQty ?? 1" />
+    <p-inputnumber locale="de-DE" [ngModel]="bWareQty()" (ngModelChange)="bWareQty.set($event)" [min]="1" [max]="bWareTarget()?.bookableQty ?? 1" />
   </div>
   <div class="form-field">
     <label>Notiz *</label>
@@ -266,7 +266,7 @@
   </div>
   <div class="form-field">
     <label>Durchmesser (mm) *</label>
-    <p-inputnumber [ngModel]="filamentDiameterMm()" (ngModelChange)="filamentDiameterMm.set($event)" [minFractionDigits]="2" [maxFractionDigits]="2" [min]="0" suffix=" mm" />
+    <p-inputnumber locale="de-DE" [ngModel]="filamentDiameterMm()" (ngModelChange)="filamentDiameterMm.set($event)" [minFractionDigits]="2" [maxFractionDigits]="2" [min]="0" suffix=" mm" />
   </div>
   @if (filamentError()) {
     <p-message severity="error">{{ filamentError() }}</p-message>
@@ -303,12 +303,12 @@
   </div>
   <div class="form-field">
     <label>Bruttogewicht (g) *</label>
-    <p-inputnumber [ngModel]="spoolGrossWeightG()" (ngModelChange)="spoolGrossWeightG.set($event)" [min]="0" suffix=" g" />
+    <p-inputnumber locale="de-DE" [ngModel]="spoolGrossWeightG()" (ngModelChange)="spoolGrossWeightG.set($event)" [min]="0" suffix=" g" />
     <small class="hint">Spule + Filament zusammen gewogen, nicht Herstellerangabe.</small>
   </div>
   <div class="form-field">
     <label>Taragewicht (g) *</label>
-    <p-inputnumber [ngModel]="spoolTareWeightG()" (ngModelChange)="spoolTareWeightG.set($event)" [min]="0" suffix=" g" />
+    <p-inputnumber locale="de-DE" [ngModel]="spoolTareWeightG()" (ngModelChange)="spoolTareWeightG.set($event)" [min]="0" suffix=" g" />
     <small class="hint">Gewicht der leeren Spule.</small>
   </div>
   @if (spoolGrossWeightG() !== null && spoolTareWeightG() !== null) {

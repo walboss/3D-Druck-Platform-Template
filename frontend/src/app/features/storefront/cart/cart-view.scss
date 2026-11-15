@@ -186,3 +186,18 @@ a.cart-name {
     text-decoration: underline;
   }
 }
+
+/* Positionen ohne Preis (Spec 17 §2, Review A2) */
+.cart-line-total.muted,
+.summary-price.muted {
+  color: var(--app-text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.unpriced-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--app-text-muted);
+  text-align: right;
+}

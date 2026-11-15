@@ -28,6 +28,36 @@ export class AdminDashboardService {
     return { count: data?.length ?? 0, orders: data ?? [] };
   }
 
+  /** Neue Bestellungen (Status New) – Zähler im Admin-Menü. */
+  async getNewOrdersCount(): Promise<number> {
+    const { count, error } = await this.supabase.client
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'New');
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  /** Bestellungen „Bereit zur Abholung“ (Spec 19, Entscheidung 2026-11-14). */
+  async getReadyForPickupCount(): Promise<number> {
+    const { count, error } = await this.supabase.client
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ReadyForPickup');
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  /** Individualanfragen im Status „neu“ (Spec 19, Entscheidung 2026-11-14). */
+  async getNewRequestsCount(): Promise<number> {
+    const { count, error } = await this.supabase.client
+      .from('custom_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'neu');
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   async getRunningProduction(): Promise<RunningProductionSummary> {
     const { data, error } = await this.supabase.client
       .from('production_orders')

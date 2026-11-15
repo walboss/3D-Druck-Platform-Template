@@ -19,6 +19,7 @@ import {
 } from '../../../core/services/admin-production.service';
 import { FilamentService, SpoolAvailability } from '../../../core/services/filament.service';
 import { ProductionOrderStatus } from '../../../core/models/db-types';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
 
 interface SpoolAssignmentDraft {
   orderItemId: string;
@@ -35,7 +36,7 @@ interface MaterialUsageRow {
 @Component({
   selector: 'app-admin-production-detail',
   standalone: true,
-  imports: [
+  imports: [StatusLabelPipe, 
     DatePipe,
     FormsModule,
     ButtonModule,

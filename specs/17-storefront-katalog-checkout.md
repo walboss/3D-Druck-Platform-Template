@@ -41,6 +41,12 @@ bereits existierende variant_configuration_id verlassen.
 berechneter Preis, stattdessen Hinweistext "Preis wird bei Bestellung final
 berechnet".
 
+**Positionen ohne Preis in Warenkorb/Kasse** (Entscheidung 2026-11-14 —
+Review A2): Zeilensumme zeigt "Preis folgt" statt 0 €. Gibt es mindestens eine
+solche Position, heißt die Summe "Zwischensumme" (nur Positionen mit Preis) mit
+Hinweis darunter "+ N Position(en), deren Preis wir dir noch mitteilen". Haben
+alle Positionen einen Preis: "Gesamtsumme" wie bisher.
+
 ## 3. Warenkorb
 
 **Datenquelle:** cart_sessions/cart_items (volles CRUD für anon)
@@ -59,21 +65,23 @@ berechnet".
 
 ## 4. Checkout
 
-**Datenquelle:** fn_customer_search (nur Signal, keine Daten), fn_place_order (Abschluss)
+**Datenquelle:** fn_place_order (Abschluss)
 
 **Ablauf:**
-1. Kundensuche aktiv anbieten (Telefon ODER E-Mail)
-2. fn_customer_search liefert AUSSCHLIESSLICH boolean (Enumerations-Schutz) —
-   niemals Kundendaten ans Frontend
-3. Kunde gibt seine Daten in JEDEM Fall selbst ein (Name, Telefon, E-Mail;
-   Pflichtfeld-Logik abhängig von email_required_at_order, aktuell false),
-   unabhängig vom Suchergebnis
-4. Bei Treffer optional nur UX-Hinweis ("Willkommen zurück!"), keine
-   Datenübernahme aus der Suche
-5. Verknüpfung mit bestehendem Kunden passiert ausschließlich serverseitig
+1. ~~Kundensuche "Kennen wir uns schon?" (fn_customer_search)~~ — im
+   Storefront entfernt (Entscheidung 2026-11-14 — Review B14): zweites
+   Captcha, kein Nutzen, da der Kunde ohnehin alles eingibt. Funktion/Worker-
+   Endpunkt bleiben vorerst bestehen, werden nur nicht mehr aufgerufen.
+2. Kunde gibt seine Daten selbst ein (Name, Telefon, E-Mail;
+   Pflichtfeld-Logik abhängig von email_required_at_order, aktuell false)
+3. Verknüpfung mit bestehendem Kunden passiert ausschließlich serverseitig
    innerhalb fn_place_order anhand der eingegebenen Telefon/E-Mail-Daten
-6. Bestellabschluss via fn_place_order (Bestellnummer ORDER-<Jahr>-<5-stellig>,
+4. Bestellabschluss via fn_place_order (Bestellnummer ORDER-<Jahr>-<5-stellig>,
    Mengenregeln-Prüfung)
+5. Bestell-Knopf im gewerblichen Modus (Preise sichtbar) bleibt
+   "Zahlungspflichtig bestellen" (gesetzliche Button-Lösung), daneben Hinweis
+   "Bezahlung bei Abholung". Im Privatmodus ("Anfrage senden") kein solcher
+   Hinweis (Entscheidung 2026-11-14 — Review B15).
 
 **Bei Mengenregel-Verstoß:** Inline-Fehlermeldung direkt am betroffenen
 Warenkorb-Item ("Diese Menge ist aktuell nicht bestellbar. Bitte Menge

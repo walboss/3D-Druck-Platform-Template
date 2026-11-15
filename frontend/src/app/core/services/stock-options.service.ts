@@ -23,6 +23,8 @@ export class StockOptionsService {
   readonly colors = signal<StockColor[]>([]);
   readonly finishes = signal<StockFinish[]>([]);
   private pairs: { colorId: string; finishId: string }[] = [];
+  /** true, wenn der letzte Ladeversuch gescheitert ist -- load() versucht es dann erneut. */
+  readonly loadFailed = signal(false);
   private loaded = false;
   private loadPromise: Promise<void> | null = null;
 
@@ -31,7 +33,10 @@ export class StockOptionsService {
   async load(): Promise<void> {
     if (this.loaded) return;
     if (!this.loadPromise) {
-      this.loadPromise = this.fetch();
+      this.loadPromise = this.fetch().finally(() => {
+        // Gescheitert: Promise verwerfen, damit der nächste load() neu versucht.
+        if (!this.loaded) this.loadPromise = null;
+      });
     }
     await this.loadPromise;
   }
@@ -42,15 +47,20 @@ export class StockOptionsService {
   }
 
   private async fetch(): Promise<void> {
-    const { data, error } = await this.supabase.client.rpc('fn_get_public_stock_options');
-    if (!error && data) {
-      this.colors.set((data['colors'] ?? []) as StockColor[]);
-      this.finishes.set((data['finishes'] ?? []) as StockFinish[]);
-      this.pairs = ((data['colorFinishPairs'] ?? []) as { color_id: string; finish_id: string }[]).map((p) => ({
-        colorId: p.color_id,
-        finishId: p.finish_id,
-      }));
-      this.loaded = true;
+    try {
+      const { data, error } = await this.supabase.client.rpc('fn_get_public_stock_options');
+      if (!error && data) {
+        this.colors.set((data['colors'] ?? []) as StockColor[]);
+        this.finishes.set((data['finishes'] ?? []) as StockFinish[]);
+        this.pairs = ((data['colorFinishPairs'] ?? []) as { color_id: string; finish_id: string }[]).map((p) => ({
+          colorId: p.color_id,
+          finishId: p.finish_id,
+        }));
+        this.loaded = true;
+      }
+    } catch {
+      // Netzwerkfehler -- wie Fehlerantwort behandeln.
     }
+    this.loadFailed.set(!this.loaded);
   }
 }

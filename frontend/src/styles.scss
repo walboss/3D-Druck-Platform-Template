@@ -21,23 +21,8 @@
   --app-max-width: 1200px;
 }
 
-/* Automatisch: folgt der Geräte-/Browser-Einstellung, solange kein manueller Override gesetzt ist */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --app-bg: #131417;
-    --app-surface: #1c1e22;
-    --app-surface-hover: #26282d;
-    --app-border: #2b2e34;
-    --app-text: #f2f3f5;
-    --app-text-muted: #9aa1ac;
-    --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
-    --app-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55);
-    --app-header-bg: rgba(19, 20, 23, 0.85);
-  }
-}
-
-/* Manueller Umschalter überschreibt die Systemeinstellung */
-:root[data-theme='dark'] {
+/* Dunkle Werte nur einmal definiert (Review D28) */
+@mixin app-dark-tokens {
   --app-bg: #131417;
   --app-surface: #1c1e22;
   --app-surface-hover: #26282d;
@@ -47,6 +32,18 @@
   --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
   --app-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55);
   --app-header-bg: rgba(19, 20, 23, 0.85);
+}
+
+/* Automatisch: folgt der Geräte-/Browser-Einstellung, solange kein manueller Override gesetzt ist */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include app-dark-tokens;
+  }
+}
+
+/* Manueller Umschalter überschreibt die Systemeinstellung */
+:root[data-theme='dark'] {
+  @include app-dark-tokens;
 }
 
 @media (min-width: 768px) {
@@ -241,7 +238,11 @@ p-selectbutton.w-full .p-togglebutton {
 }
 
 .p-datatable .p-datatable-tbody > tr > td {
-  white-space: nowrap;
+  /* Zellen dürfen umbrechen, sonst werden breite Tabellen (Reklamationen,
+     Bestellliste am Tablet) rechts abgeschnitten (Review F8). Kurze Werte
+     wie Status-Tags bleiben einzeilig (Regel darunter). */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .p-datatable .p-datatable-tbody > tr > td .p-tag {
@@ -256,4 +257,167 @@ p-selectbutton.w-full .p-togglebutton {
 
 .p-tabs .p-tablist-tab-list {
   background: transparent;
+}
+
+/* ---------- Admin: Tabellen als Karten auf dem Smartphone ----------
+   PrimeNG 22 hat keine automatische Mobil-Ansicht mehr. Tabellen mit
+   styleClass/class "stack-on-mobile" zeigen unter 640px pro Zeile eine
+   kompakte Karte; Label kommt aus data-label, Hauptwert per .col-primary. */
+@media (max-width: 640px) {
+  .stack-on-mobile.p-datatable,
+  .stack-on-mobile .p-datatable {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .stack-on-mobile .p-datatable-table-container {
+    overflow-x: visible;
+  }
+
+  .stack-on-mobile .p-datatable-thead {
+    display: none;
+  }
+
+  .stack-on-mobile .p-datatable-table,
+  .stack-on-mobile .p-datatable-tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  /* Kompakte Karte (Review F5): Hauptwert (.col-primary, sonst erste Zelle)
+     oben über die volle Breite, übrige Werte dreispaltig klein darunter
+     (Label über dem Wert), Aktionen unten rechts. */
+  .stack-on-mobile .p-datatable-tbody > tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.15rem 0.6rem;
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-sm);
+    box-shadow: var(--app-shadow-sm);
+    margin-bottom: 0.5rem;
+    padding: 0.55rem 0.75rem;
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td {
+    display: block;
+    min-width: 0;
+    border: 0;
+    padding: 0.1rem 0;
+    text-align: left;
+    font-size: 0.85rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--app-text-muted);
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td[data-label='']::before,
+  .stack-on-mobile .p-datatable-tbody > tr > td:not([data-label])::before {
+    content: none;
+  }
+
+  /* Hauptwert */
+  .stack-on-mobile .p-datatable-tbody > tr > td.col-primary,
+  .stack-on-mobile .p-datatable-tbody > tr:not(:has(.col-primary)) > td:first-child:not(.select-col) {
+    grid-column: 1 / -1;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding-right: 2.75rem;
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td.col-primary::before,
+  .stack-on-mobile .p-datatable-tbody > tr:not(:has(.col-primary)) > td:first-child:not(.select-col)::before {
+    content: none;
+  }
+
+  /* Auswahl-Kästchen oben rechts in der Karte */
+  .stack-on-mobile .p-datatable-tbody > tr > td.select-col {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.5rem;
+    padding: 0;
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td.select-col::before {
+    content: none;
+  }
+
+  .stack-on-mobile .p-datatable-tbody > tr > td.col-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    padding-top: 0.25rem;
+  }
+
+  /* Leere-Meldung: keine Karte mit Label */
+  .stack-on-mobile .p-datatable-tbody > tr > td[colspan] {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-weight: 400;
+    padding-right: 0;
+  }
+}
+
+/* ---------- Produktbild konnte nicht geladen werden ----------
+   Die Direktive appSizedSrc blendet das Bild aus und markiert das
+   Elternelement; hier erscheint stattdessen ein dezentes Bild-Symbol.
+   !important, weil die Komponenten ihren Hintergrund per Kurzform
+   "background: …" setzen und das Symbol sonst wieder entfernen. */
+.image-failed {
+  background-color: var(--app-surface-hover);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 2rem 2rem !important;
+}
+
+/* ---------- Admin: Tippziele am Handy mind. 40 px (Review F7) ----------
+   Kleine Knöpfe (size="small"), reine Symbol-Knöpfe (Stift/Papierkorb) und
+   Schalter sind am Desktop kompakt, am Handy aber zu klein zum Treffen. */
+@media (max-width: 767px) {
+  .admin-content .p-button,
+  .admin-content .p-paginator .p-paginator-page,
+  .admin-content .p-paginator .p-paginator-first,
+  .admin-content .p-paginator .p-paginator-prev,
+  .admin-content .p-paginator .p-paginator-next,
+  .admin-content .p-paginator .p-paginator-last {
+    min-height: 40px;
+  }
+
+  .admin-content .p-paginator .p-paginator-page,
+  .admin-content .p-paginator .p-paginator-first,
+  .admin-content .p-paginator .p-paginator-prev,
+  .admin-content .p-paginator .p-paginator-next,
+  .admin-content .p-paginator .p-paginator-last {
+    min-width: 40px;
+  }
+
+  .admin-content .p-button.p-button-icon-only {
+    min-width: 40px;
+  }
+
+  /* Schalter: sichtbare Größe bleibt, die (unsichtbare) Eingabefläche wird
+     größer -- PrimeNG legt das transparente input über den Schalter. */
+  .admin-content .p-toggleswitch {
+    position: relative;
+  }
+
+  .admin-content .p-toggleswitch .p-toggleswitch-input {
+    inset: -9px -2px;
+    width: auto;
+    height: auto;
+  }
 }

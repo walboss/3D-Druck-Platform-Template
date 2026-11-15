@@ -1,0 +1,110 @@
+# Backup-Restore-Test (Review D33): spielt das neueste verschluesselte
+# Backup aus dem Backup-Repo in ein frisches Postgres 17 ein und vergleicht
+# je Tabelle im Schema public die Zeilenzahl mit der Live-Datenbank.
+# Nur manuell starten (Actions -> "Backup-Restore-Test" -> Run workflow).
+# Nutzt nur die vorhandenen Secrets SUPABASE_DB_URL, BACKUP_REPO_PAT und
+# BACKUP_ENCRYPTION_KEY. Das entschluesselte Backup verlaesst den Runner nie
+# (kein Artefakt); in die Zusammenfassung kommen nur Tabellennamen und Zahlen.
+name: Backup-Restore-Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-test:
+    # In der oeffentlichen Vorlage gibt es keine Secrets -> dort nicht laufen
+    if: github.repository != 'walboss/3D-Druck-Platform-Template'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restoretest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RESTORE_URL: postgresql://postgres:restoretest@localhost:5432/postgres
+      # gleiche Sortierung fuer sort und join
+      LC_ALL: C
+    steps:
+      - name: Install postgresql-client-17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Checkout backup repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: DEIN-GITHUB-NAME/3-D-Druck-Backup
+          token: ${{ secrets.BACKUP_REPO_PAT }}
+          path: backup-repo
+
+      - name: Decrypt newest backup
+        env:
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          latest=$(ls -1 backup-repo/backup-*.sql.gpg | sort | tail -n 1)
+          echo "Backup: $(basename "$latest")" | tee -a "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$BACKUP_ENCRYPTION_KEY" | gpg --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 --decrypt --output restore.sql "$latest"
+          echo "Groesse: $(du -h restore.sql | cut -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare Supabase roles
+        run: |
+          # Supabase-Dumps verweisen auf diese Rollen (Grants, Policies, Owner).
+          for r in anon authenticated service_role authenticator supabase_admin \
+                   supabase_auth_admin supabase_storage_admin dashboard_user pgbouncer \
+                   supabase_realtime_admin supabase_replication_admin supabase_read_only_user; do
+            /usr/lib/postgresql/17/bin/psql "$RESTORE_URL" -qc \
+              "do \$\$ begin create role $r nologin; exception when duplicate_object then null; end \$\$;"
+          done
+
+      - name: Restore
+        run: |
+          /usr/lib/postgresql/17/bin/psql "$RESTORE_URL" -v ON_ERROR_STOP=0 -q -f restore.sql > restore.log 2>&1 || true
+          errors=$(grep -c "ERROR" restore.log || true)
+          echo "Fehlermeldungen beim Einspielen: $errors (erwartet: einige zu Supabase-Erweiterungen/-Schemas)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Nur die ersten Fehlerarten (ohne Daten) ins Log, zur Einordnung
+          grep "ERROR" restore.log | sed -E 's/ERROR: +//' | cut -c1-80 | sort | uniq -c | sort -rn | head -15 || true
+          rm -f restore.sql
+
+      - name: Compare row counts (public)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          q="select string_agg(format('select %L as t, count(*) as n from public.%I', table_name, table_name), ' union all ' order by table_name) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'"
+          live_sql=$(/usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL" -Atc "$q")
+          /usr/lib/postgresql/17/bin/psql "$SUPABASE_DB_URL" -AtF ';' -c "$live_sql" | sort > live.txt
+          rest_sql=$(/usr/lib/postgresql/17/bin/psql "$RESTORE_URL" -Atc "$q")
+          if [ -z "$rest_sql" ]; then echo "Keine public-Tabellen im Restore!" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          /usr/lib/postgresql/17/bin/psql "$RESTORE_URL" -AtF ';' -c "$rest_sql" | sort > restored.txt
+          {
+            echo ""
+            echo "| Tabelle | Live | Backup |"
+            echo "|---|---:|---:|"
+            join -t ';' -a 1 -e '–' -o '0,1.2,2.2' live.txt restored.txt | awk -F';' '{printf "| %s | %s | %s |\n", $1, $2, $3}'
+          } >> "$GITHUB_STEP_SUMMARY"
+          missing=$(join -t ';' -v 1 live.txt restored.txt | cut -d';' -f1)
+          products=$(grep '^products;' restored.txt | cut -d';' -f2)
+          echo "Tabellen live: $(wc -l < live.txt), im Backup: $(wc -l < restored.txt), Produkte im Backup: ${products:-0}"
+          if [ -n "$missing" ]; then
+            echo "Fehlende Tabellen im Backup: $missing" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "${products:-0}" -eq 0 ]; then
+            echo "Backup enthaelt keine Produkte!" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Alle public-Tabellen wiederhergestellt; Abweichungen bei den Zahlen = Aenderungen seit dem Backup." >> "$GITHUB_STEP_SUMMARY"

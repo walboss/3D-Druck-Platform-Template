@@ -13,6 +13,7 @@ import { MessageModule } from 'primeng/message';
 import { AdminOrdersService, AdminOrderListRow } from '../../../core/services/admin-orders.service';
 import { OrderStatus } from '../../../core/models/db-types';
 import { PopoverModule } from 'primeng/popover';
+import { StatusLabelPipe, statusLabel } from '../../../core/utils/status-labels';
 
 const ALL_STATUSES: OrderStatus[] = [
   'New',
@@ -24,10 +25,12 @@ const ALL_STATUSES: OrderStatus[] = [
   'Cancelled',
 ];
 
+const OPEN_STATUSES: OrderStatus[] = ['New', 'Confirmed', 'InProduction', 'Finished', 'ReadyForPickup'];
+
 @Component({
   selector: 'app-admin-orders-list',
   standalone: true,
-  imports: [PopoverModule, DatePipe, FormsModule, TableModule, InputTextModule, MultiSelectModule, TagModule, SkeletonModule, MessageModule],
+  imports: [StatusLabelPipe, PopoverModule, DatePipe, FormsModule, TableModule, InputTextModule, MultiSelectModule, TagModule, SkeletonModule, MessageModule],
   templateUrl: './admin-orders-list.html',
   styleUrl: './admin-orders-list.scss',
 })
@@ -37,9 +40,11 @@ export class AdminOrdersList implements OnInit {
   readonly orders = signal<AdminOrderListRow[]>([]);
 
   readonly search = signal('');
-  readonly statusFilter = signal<OrderStatus[]>([]);
+  // Vorfilter „offen“ (Review C24): alles außer Übergeben/Storniert. Über das
+  // Status-Feld jederzeit änderbar oder leerbar (= alle).
+  readonly statusFilter = signal<OrderStatus[]>(OPEN_STATUSES);
 
-  readonly statusOptions = ALL_STATUSES.map((s) => ({ label: s, value: s }));
+  readonly statusOptions = ALL_STATUSES.map((s) => ({ label: statusLabel(s), value: s }));
 
   readonly filteredOrders = computed(() => {
     const search = this.search().trim().toLowerCase();

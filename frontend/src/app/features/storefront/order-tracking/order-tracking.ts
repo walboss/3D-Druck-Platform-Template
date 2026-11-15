@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { DatePipe } from '@angular/common';
 
 import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -8,13 +9,14 @@ import { TagModule } from 'primeng/tag';
 import { OrderTrackingService } from '../../../core/services/order-tracking.service';
 import { OrderItemStatus, OrderStatus, OrderTrackingResult } from '../../../core/models/db-types';
 import { PricingService } from '../../../core/services/pricing.service';
+import { statusLabel } from '../../../core/utils/status-labels';
 
 const ITEM_STEPS: OrderItemStatus[] = ['Offen', 'WartetAufMaterial', 'InProduktion', 'Fertig'];
 
 @Component({
   selector: 'app-order-tracking',
   standalone: true,
-  imports: [MessageModule, SkeletonModule, TagModule],
+  imports: [DatePipe, MessageModule, SkeletonModule, TagModule],
   templateUrl: './order-tracking.html',
   styleUrl: './order-tracking.scss',
 })
@@ -55,36 +57,12 @@ export class OrderTracking implements OnInit {
 
   /** Lesbare Beschriftung für Stepper und Positions-Tag (nur Anzeige, Statuswerte bleiben unverändert). */
   stepLabel(step: OrderItemStatus): string {
-    switch (step) {
-      case 'WartetAufMaterial':
-        return 'Wartet auf Material';
-      case 'InProduktion':
-        return 'In Produktion';
-      default:
-        return step;
-    }
+    return statusLabel(step);
   }
 
   /** Deutsche, neutrale Beschriftung des Gesamtstatus statt interner Enum-Werte. */
   orderStatusLabel(status: OrderStatus): string {
-    switch (status) {
-      case 'New':
-        return 'Eingegangen';
-      case 'Confirmed':
-        return 'Bestätigt';
-      case 'InProduction':
-        return 'In Produktion';
-      case 'Finished':
-        return 'Fertig';
-      case 'ReadyForPickup':
-        return 'Bereit zur Abholung';
-      case 'HandedOver':
-        return 'Abgeholt';
-      case 'Cancelled':
-        return 'Storniert';
-      default:
-        return status;
-    }
+    return statusLabel(status);
   }
 
   orderStatusSeverity(status: OrderStatus): 'success' | 'info' | 'warn' | 'danger' {

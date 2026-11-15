@@ -36,6 +36,16 @@ export class AdminDashboard implements OnInit, OnDestroy {
   readonly openOrdersError = signal(false);
   readonly openOrders = signal<OpenOrdersSummary | null>(null);
   readonly ordersWithComment = computed(() => (this.openOrders()?.orders ?? []).filter((o) => !!o.customer_message?.trim()));
+  readonly newOrdersCount = computed(() => (this.openOrders()?.orders ?? []).filter((o) => o.status === 'New').length);
+
+  // „Was ist zu tun?“-Kacheln (Spec 19, Entscheidung 2026-11-14, Review C23/F9)
+  readonly pickupLoading = signal(true);
+  readonly pickupError = signal(false);
+  readonly pickupCount = signal(0);
+
+  readonly requestsLoading = signal(true);
+  readonly requestsError = signal(false);
+  readonly newRequestsCount = signal(0);
 
   readonly lowStockLoading = signal(true);
   readonly lowStockError = signal(false);
@@ -68,26 +78,63 @@ export class AdminDashboard implements OnInit, OnDestroy {
 
   constructor(private readonly dashboardService: AdminDashboardService, private readonly router: Router) {}
 
+  // Polling ohne Lade-Skelett und nur bei sichtbarem Tab; beim Zurückkehren
+  // sofort aktualisieren (Spec 19, Review C23).
+  private readonly onVisibilityChange = (): void => {
+    if (!document.hidden) this.loadAll(true);
+  };
+
   ngOnInit(): void {
     this.loadAll();
-    this.pollHandle = setInterval(() => this.loadAll(), POLL_INTERVAL_MS);
+    this.pollHandle = setInterval(() => {
+      if (!document.hidden) this.loadAll(true);
+    }, POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
   }
 
   ngOnDestroy(): void {
     if (this.pollHandle) clearInterval(this.pollHandle);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
   }
 
-  loadAll(): void {
-    this.loadOpenOrders();
-    this.loadLowStock();
-    this.loadProduction();
-    this.loadSeason();
-    this.loadNoCategory();
-    this.loadDefaultPrinter();
+  /** silent = Hintergrund-Aktualisierung: alte Werte bleiben stehen, kein Skelett. */
+  loadAll(silent = false): void {
+    void this.loadOpenOrders(silent);
+    void this.loadReadyForPickup(silent);
+    void this.loadNewRequests(silent);
+    void this.loadLowStock(silent);
+    void this.loadProduction(silent);
+    void this.loadSeason(silent);
+    void this.loadNoCategory(silent);
+    void this.loadDefaultPrinter(silent);
   }
 
-  async loadSeason(): Promise<void> {
-    this.seasonLoading.set(true);
+  async loadReadyForPickup(silent = false): Promise<void> {
+    if (!silent) this.pickupLoading.set(true);
+    this.pickupError.set(false);
+    try {
+      this.pickupCount.set(await this.dashboardService.getReadyForPickupCount());
+    } catch {
+      this.pickupError.set(true);
+    } finally {
+      this.pickupLoading.set(false);
+    }
+  }
+
+  async loadNewRequests(silent = false): Promise<void> {
+    if (!silent) this.requestsLoading.set(true);
+    this.requestsError.set(false);
+    try {
+      this.newRequestsCount.set(await this.dashboardService.getNewRequestsCount());
+    } catch {
+      this.requestsError.set(true);
+    } finally {
+      this.requestsLoading.set(false);
+    }
+  }
+
+  async loadSeason(silent = false): Promise<void> {
+    if (!silent) this.seasonLoading.set(true);
     this.seasonError.set(false);
     try {
       const [seasons, settings] = await Promise.all([this.seasonsService.list(), this.settingsService.getSettings()]);
@@ -102,8 +149,8 @@ export class AdminDashboard implements OnInit, OnDestroy {
     }
   }
 
-  async loadNoCategory(): Promise<void> {
-    this.noCategoryLoading.set(true);
+  async loadNoCategory(silent = false): Promise<void> {
+    if (!silent) this.noCategoryLoading.set(true);
     this.noCategoryError.set(false);
     try {
       const products = await this.catalogService.listProducts();
@@ -115,8 +162,8 @@ export class AdminDashboard implements OnInit, OnDestroy {
     }
   }
 
-  async loadDefaultPrinter(): Promise<void> {
-    this.printerLoading.set(true);
+  async loadDefaultPrinter(silent = false): Promise<void> {
+    if (!silent) this.printerLoading.set(true);
     this.printerError.set(false);
     try {
       const printers = await this.printersService.listPrinters();
@@ -128,8 +175,8 @@ export class AdminDashboard implements OnInit, OnDestroy {
     }
   }
 
-  async loadOpenOrders(): Promise<void> {
-    this.openOrdersLoading.set(true);
+  async loadOpenOrders(silent = false): Promise<void> {
+    if (!silent) this.openOrdersLoading.set(true);
     this.openOrdersError.set(false);
     try {
       this.openOrders.set(await this.dashboardService.getOpenOrders());
@@ -140,8 +187,8 @@ export class AdminDashboard implements OnInit, OnDestroy {
     }
   }
 
-  async loadLowStock(): Promise<void> {
-    this.lowStockLoading.set(true);
+  async loadLowStock(silent = false): Promise<void> {
+    if (!silent) this.lowStockLoading.set(true);
     this.lowStockError.set(false);
     try {
       this.lowStock.set(await this.dashboardService.getLowStock());
@@ -152,8 +199,8 @@ export class AdminDashboard implements OnInit, OnDestroy {
     }
   }
 
-  async loadProduction(): Promise<void> {
-    this.productionLoading.set(true);
+  async loadProduction(silent = false): Promise<void> {
+    if (!silent) this.productionLoading.set(true);
     this.productionError.set(false);
     try {
       this.production.set(await this.dashboardService.getRunningProduction());

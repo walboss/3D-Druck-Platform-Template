@@ -7,7 +7,26 @@
 }
 
 .customer-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1rem;
   margin: 0.5rem 0;
+}
+
+/* Telefon/E-Mail antippbar (Review C25), Tippziel mind. 44 px hoch. */
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  color: var(--p-primary-color);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .customer-message,
@@ -116,4 +135,13 @@
 .dialog-hint {
   font-size: 0.875rem;
   color: var(--p-text-muted-color, #6c757d);
+}
+
+/* Stornieren abgesetzt (Review F10) */
+.order-danger-zone {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--app-border);
 }

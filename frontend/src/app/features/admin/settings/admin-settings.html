@@ -1,4 +1,4 @@
-<h1>Settings</h1>
+<h1>Einstellungen</h1>
 
 @if (error()) {
   <p-message severity="error">{{ error() }}</p-message>
@@ -10,6 +10,8 @@
     <p-message severity="success" styleClass="mb-3">Einstellungen gespeichert.</p-message>
   }
 
+  <!-- Desktop: Abschnitte zweispaltig (Review F11) -->
+  <div class="settings-grid">
   <section class="settings-section">
     <h2>Shop</h2>
     <div class="mode-list" role="radiogroup" aria-label="Shop-Modus">
@@ -80,15 +82,15 @@
     <h2>Kalkulation &amp; Bestellung</h2>
     <div class="form-field">
       <label>Strompreis pro kWh</label>
-      <p-inputnumber [(ngModel)]="electricityPricePerKwh" mode="currency" currency="EUR" [maxFractionDigits]="4" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="electricityPricePerKwh" mode="currency" currency="EUR" [maxFractionDigits]="4" />
     </div>
     <div class="form-field">
       <label>Standard-Stundensatz</label>
-      <p-inputnumber [(ngModel)]="defaultLaborRatePerHour" mode="currency" currency="EUR" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="defaultLaborRatePerHour" mode="currency" currency="EUR" />
     </div>
     <div class="form-field">
       <label>Mindestbestellwert (leer = deaktiviert)</label>
-      <p-inputnumber [ngModel]="minOrderValue()" (ngModelChange)="minOrderValue.set($event)" mode="currency" currency="EUR" />
+      <p-inputnumber locale="de-DE" [ngModel]="minOrderValue()" (ngModelChange)="minOrderValue.set($event)" mode="currency" currency="EUR" />
     </div>
   </section>
 
@@ -96,9 +98,10 @@
     <h2>Datenschutz</h2>
     <div class="form-field">
       <label>Kundendaten-Aufbewahrungsfrist (Tage)</label>
-      <p-inputnumber [(ngModel)]="customerDataRetentionDays" [min]="1" suffix=" Tage" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="customerDataRetentionDays" [min]="1" suffix=" Tage" />
     </div>
   </section>
+  </div>
 
   <p-button label="Speichern" icon="pi pi-save" [loading]="saving()" (click)="save()"></p-button>
 }

@@ -1,8 +1,13 @@
 .tile-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 1.25rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+
+  @media (min-width: 768px) {
+    gap: 1.25rem;
+    margin-top: 1rem;
+  }
 }
 
 .tile {
@@ -10,7 +15,8 @@
   border: 1px solid var(--p-content-border-color, #e0e0e0);
   border-radius: var(--app-radius);
   box-shadow: var(--app-shadow-sm);
-  padding: 1.25rem;
+  padding: 0.85rem;
+  min-width: 0;
   cursor: pointer;
   transition: box-shadow 0.15s ease;
 
@@ -18,15 +24,24 @@
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   }
 
+  &:focus-visible {
+    outline: 2px solid var(--p-primary-color);
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 768px) {
+    padding: 1.25rem;
+  }
+
   h3 {
-    margin: 0 0 0.75rem;
-    font-size: 0.95rem;
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
     color: var(--p-text-muted-color, #6c757d);
   }
 }
 
 .tile-number {
-  font-size: 2.25rem;
+  font-size: 1.9rem;
   font-weight: 700;
   margin: 0;
 }
@@ -43,9 +58,10 @@
 }
 
 .tile-text {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   font-weight: 700;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .tile-star {
@@ -55,4 +71,27 @@
 
 .tile-warn {
   color: var(--p-orange-500, #f97316);
+}
+
+@media (min-width: 768px) {
+  .tile-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .tile-number {
+    font-size: 2.25rem;
+  }
+
+  .tile-text {
+    font-size: 1.5rem;
+  }
+
+  .tile h3 {
+    font-size: 0.95rem;
+  }
+}
+
+.tile-todo {
+  color: var(--p-primary-color);
+  font-weight: 600;
 }

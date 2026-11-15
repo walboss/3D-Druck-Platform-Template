@@ -1,4 +1,12 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
+import {
+  ApplicationConfig,
+  DEFAULT_CURRENCY_CODE,
+  LOCALE_ID,
+  provideBrowserGlobalErrorListeners,
+  provideZonelessChangeDetection,
+} from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -7,8 +15,14 @@ import { AppPreset } from './core/theme/app-preset';
 
 import { routes } from './app.routes';
 
+// Deutsches Zahlen-/Währungsformat für alle Pipes (currency, number, date):
+// 19,98 € statt €19.98 (Review A1/F4).
+registerLocaleData(localeDe);
+
 export const appConfig: ApplicationConfig = {
   providers: [
+    { provide: LOCALE_ID, useValue: 'de-DE' },
+    { provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' },
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
     provideRouter(
@@ -18,7 +32,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(),
     provideAnimationsAsync(),
     providePrimeNG({
-      // Eigener PrimeUI-Lizenzschlüssel (kostenlose Community-Lizenz, siehe ANLEITUNG Schritt 3.3)
+      // Eigener PrimeUI-Lizenzschlüssel (kostenlose Community-Lizenz, siehe ANLEITUNG.md)
       license: 'DEIN-PRIMEUI-LICENSE-KEY',
       theme: {
         preset: AppPreset,

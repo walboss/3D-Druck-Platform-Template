@@ -66,6 +66,10 @@
   gap: 0.35rem;
 }
 
+.plate-label {
+  font-size: 0.9rem;
+}
+
 .plate-meta {
   font-size: 0.85rem;
   color: var(--p-text-muted-color, #6c757d);
@@ -103,4 +107,127 @@
 
 .w-full {
   width: 100%;
+}
+
+.viewer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.area-removed {
+  opacity: 0.55;
+
+  .area-meta {
+    flex: 1;
+  }
+}
+
+.area-added {
+  margin-left: 0.25rem;
+  color: var(--p-primary-color);
+  font-weight: 600;
+}
+
+.area-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 1px solid var(--p-content-border-color, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--p-text-muted-color, #6c757d);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--p-text-color);
+    background: var(--p-content-hover-background, rgba(0, 0, 0, 0.04));
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+.mapping-warn {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--p-red-500, #ef4444);
+}
+
+.mapping-ai {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--p-primary-color);
+}
+
+.variant-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.variant-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.variant-name {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.variant-plates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.plate-chip {
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--p-content-border-color, #e5e7eb);
+  background: transparent;
+  color: var(--p-text-color);
+  cursor: pointer;
+  font-size: 0.85rem;
+
+  &.plate-chip-on {
+    background: var(--p-primary-color);
+    border-color: var(--p-primary-color);
+    color: var(--p-primary-contrast-color, #fff);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
+.add-variant {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 0.8rem;
+  border: 1px dashed var(--p-content-border-color, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--p-text-color);
+  cursor: pointer;
 }

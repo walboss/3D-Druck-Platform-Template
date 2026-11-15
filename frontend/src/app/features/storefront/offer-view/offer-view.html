@@ -20,7 +20,7 @@
     <div class="app-card">
       <h2>Positionen</h2>
       <div class="items-list">
-        @for (item of offer()!.items; track item.desired_variant_description) {
+        @for (item of offer()!.items; track $index) {
           <div class="item-row">
             <span class="item-name">
               {{ item.desired_variant_description }}

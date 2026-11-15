@@ -17,20 +17,30 @@ import { TurnstileWidget } from '../../../shared/turnstile/turnstile-widget';
 import { Color, Finish } from '../../../core/models/db-types';
 import { PricingService } from '../../../core/services/pricing.service';
 import { LEGAL_PAGES_ENABLED } from '../../../core/legal-pages';
+import { isEmailFormatValid } from '../../../core/utils/email.util';
 
 type ColorMode = 'einfarbig' | 'mehrfarbig';
 
-interface Slot {
+export interface Slot {
   label: string;
   hex: string;
+  /** optionaler Teilename vom Kunden, nur Hinweis für den Admin (Entscheidung 2026-11-14) */
+  name?: string;
 }
 
-function hexToRgb(hex: string): [number, number, number] | null {
-  const clean = hex.replace('#', '');
-  if (clean.length !== 6) return null;
-  const num = parseInt(clean, 16);
-  if (Number.isNaN(num)) return null;
-  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+/** Gespeichertes slot_label: „Slot 1“ bzw. „Slot 1 – Kopf“ (specs/angebote-individuelle-anfragen.md). */
+export function slotLabelForSubmit(slot: Slot): string {
+  const name = slot.name?.trim();
+  return name ? `${slot.label} – ${name}` : slot.label;
+}
+
+/**
+ * Slot-Labels sind rein positionsbezogen ("Slot 1" … "Slot n", Spec
+ * angebote-individuelle-anfragen.md: keine Teilenamen). Nach Entfernen neu
+ * durchnummerieren, damit kein Name doppelt vorkommt (Review A6).
+ */
+export function renumberSlots(slots: Slot[]): Slot[] {
+  return slots.map((slot, i) => ({ ...slot, label: `Slot ${i + 1}` }));
 }
 
 @Component({
@@ -71,7 +81,8 @@ export class CustomRequestForm implements OnInit {
   readonly qty = signal(1);
   readonly message = signal('');
 
-  readonly singleColorHex = signal('#ff0000');
+  // Farbkreise ohne Vorauswahl (Spec 18 §6, Review B16)
+  readonly singleColorId = signal<string | null>(null);
   readonly singleFinishId = signal<string | null>(null);
 
   readonly slots = signal<Slot[]>([{ label: 'Slot 1', hex: '#ff0000' }]);
@@ -86,23 +97,7 @@ export class CustomRequestForm implements OnInit {
   readonly error = signal<string | null>(null);
   readonly submitted = signal(false);
 
-  readonly bestMatchColor = computed(() => {
-    const rgb = hexToRgb(this.singleColorHex());
-    if (!rgb) return null;
-    let best: Color | null = null;
-    let bestDist = Infinity;
-    for (const c of this.colors()) {
-      if (!c.hex) continue;
-      const crgb = hexToRgb(c.hex);
-      if (!crgb) continue;
-      const dist = (rgb[0] - crgb[0]) ** 2 + (rgb[1] - crgb[1]) ** 2 + (rgb[2] - crgb[2]) ** 2;
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = c;
-      }
-    }
-    return best;
-  });
+  readonly selectedColor = computed(() => this.colors().find((c) => c.id === this.singleColorId()) ?? null);
 
   readonly canAddSlot = computed(() => this.slots().length < 8);
 
@@ -125,13 +120,15 @@ export class CustomRequestForm implements OnInit {
   });
   readonly invalidQty = computed(() => !this.qty() || this.qty() < 1);
   readonly invalidColor = computed(() =>
-    this.colorMode() === 'einfarbig' ? this.bestMatchColor() === null : this.slots().length === 0,
+    this.colorMode() === 'einfarbig' ? this.selectedColor() === null : this.slots().length === 0,
   );
   readonly invalidFirstName = computed(() => !this.firstName().trim());
   readonly invalidLastName = computed(() => this.lastNameRequired() && !this.lastName().trim());
   readonly invalidContact = computed(
     () => this.contactRequired() && !this.phone().trim() && !this.email().trim(),
   );
+
+  readonly invalidEmail = computed(() => !isEmailFormatValid(this.email()));
 
   readonly missingFields = computed(() => {
     const missing: string[] = [];
@@ -142,6 +139,7 @@ export class CustomRequestForm implements OnInit {
     if (this.invalidFirstName()) missing.push('Vorname');
     if (this.invalidLastName()) missing.push('Nachname');
     if (this.invalidContact()) missing.push('Telefon oder E-Mail');
+    if (this.invalidEmail()) missing.push('gültige E-Mail-Adresse');
     return missing;
   });
 
@@ -171,12 +169,15 @@ export class CustomRequestForm implements OnInit {
 
   addSlot(): void {
     if (!this.canAddSlot()) return;
-    const n = this.slots().length + 1;
-    this.slots.update((s) => [...s, { label: `Slot ${n}`, hex: '#ff0000' }]);
+    this.slots.update((s) => renumberSlots([...s, { label: '', hex: '#ff0000' }]));
   }
 
   removeSlot(index: number): void {
-    this.slots.update((s) => s.filter((_, i) => i !== index));
+    this.slots.update((s) => renumberSlots(s.filter((_, i) => i !== index)));
+  }
+
+  updateSlotName(index: number, name: string): void {
+    this.slots.update((s) => s.map((slot, i) => (i === index ? { ...slot, name } : slot)));
   }
 
   updateSlotHex(index: number, hex: string): void {
@@ -223,11 +224,11 @@ export class CustomRequestForm implements OnInit {
         p_desired_size: `${this.desiredSize()!.toLocaleString('de-DE')} cm`,
         p_qty: this.qty(),
         p_message: this.message().trim(),
-        p_color_id: isMulti ? null : this.bestMatchColor()?.id ?? null,
+        p_color_id: isMulti ? null : this.singleColorId(),
         p_finish_id: isMulti ? null : this.singleFinishId(),
         p_slice_file_upload: null,
         p_slot_colors: isMulti
-          ? this.slots().map((s) => ({ slot_label: s.label, hex: s.hex }))
+          ? this.slots().map((s) => ({ slot_label: slotLabelForSubmit(s), hex: s.hex }))
           : null,
       });
 

@@ -3,7 +3,7 @@
 <header class="storefront-header">
   <nav class="storefront-nav">
     <a routerLink="/" class="brand">
-      <img src="/brand/logo.png" alt="Mein 3D-Druck" class="brand-logo" />
+      <img src="/brand/logo.png" alt="Mein 3D-Druck" class="brand-logo" width="165" height="112" />
     </a>
 
     <div class="nav-links">
@@ -37,6 +37,13 @@
 </header>
 
 <main class="storefront-content">
+  @if (settingsLoadFailed()) {
+    <div class="settings-error" role="alert">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>Einige Shop-Funktionen konnten nicht geladen werden.</span>
+      <button type="button" class="settings-retry" (click)="retrySettings()">Erneut versuchen</button>
+    </div>
+  }
   <router-outlet />
 </main>
 

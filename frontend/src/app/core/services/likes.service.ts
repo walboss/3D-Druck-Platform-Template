@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { SupabaseClientService } from './supabase-client.service';
 import { VisitorService } from './visitor.service';
-import { CatalogProduct, ProductImage, VCatalogRow } from '../models/db-types';
+import { CatalogProduct, VCatalogRow } from '../models/db-types';
+import { groupCatalogRows } from '../utils/catalog-group.util';
 
 // Spec like-system.md §4/§5a: Toggle + eigene Likes, immer unabhängig vom
 // Privatmodus nutzbar (kein Account nötig).
@@ -12,8 +13,12 @@ export class LikesService {
     private readonly visitor: VisitorService,
   ) {}
 
-  async getCounts(): Promise<Map<string, number>> {
-    const { data, error } = await this.supabase.client.from('v_product_like_counts').select('product_id, likes_count');
+  /** Like-Zähler; mit productIds nur für diese Produkte (Review D29). */
+  async getCounts(productIds?: string[]): Promise<Map<string, number>> {
+    if (productIds && productIds.length === 0) return new Map();
+    let query = this.supabase.client.from('v_product_like_counts').select('product_id, likes_count');
+    if (productIds) query = query.in('product_id', productIds);
+    const { data, error } = await query;
     if (error) throw error;
     const map = new Map<string, number>();
     for (const row of data ?? []) {
@@ -54,36 +59,6 @@ export class LikesService {
       p_visitor_token: this.visitor.getToken(),
     });
     if (error) throw error;
-    const rows = (data ?? []) as VCatalogRow[];
-
-    const byProduct = new Map<string, CatalogProduct>();
-    for (const row of rows) {
-      let product = byProduct.get(row.product_id);
-      if (!product) {
-        product = {
-          product_id: row.product_id,
-          name: row.name,
-          description: row.description,
-          category: row.category,
-          tags: row.tags ?? [],
-          images: (row.images ?? []) as ProductImage[],
-          variants: [],
-          minPrice: null,
-          hasMultiplePrices: false,
-          likesCount: 0,
-          likedByMe: true,
-        };
-        byProduct.set(row.product_id, product);
-      }
-      product.variants.push(row);
-    }
-
-    for (const product of byProduct.values()) {
-      const prices = product.variants.map((v) => v.final_price).filter((p): p is number => p !== null);
-      product.minPrice = prices.length > 0 ? Math.min(...prices) : null;
-      product.hasMultiplePrices = product.variants.length > 1;
-    }
-
-    return Array.from(byProduct.values());
+    return groupCatalogRows((data ?? []) as VCatalogRow[], true);
   }
 }

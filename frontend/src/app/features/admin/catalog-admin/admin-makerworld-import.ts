@@ -1,8 +1,10 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -15,14 +17,27 @@ import { WorkerApiService, MakerworldImportResult } from '../../../core/services
 import { AdminMakerworldService } from '../../../core/services/admin-makerworld.service';
 import { mergeTagsCaseInsensitive } from '../../../core/utils/tags.util';
 import {
-  MakerworldPlate,
   PlateMappingState,
   defaultMappingState,
   hasPlateChoice,
   planError,
   planProducts,
+  makerworldViewerUrl,
+  multicolorPlateNos,
+  applyPlateAnalysis,
+  plateAnalysisHint,
 } from '../../../core/utils/makerworld-plates.util';
 import { MakerworldPlateMapping } from '../../../shared/makerworld-plates/makerworld-plate-mapping';
+import {
+  HEAVY_PRINT_WEIGHT_G,
+  ImportEntry,
+  ImportRow,
+  LONG_PRINT_MINUTES,
+  MODEL_ID_PATTERN,
+  PREVIEW_CONCURRENCY,
+  PROGRESS_THRESHOLD,
+  parseCsv,
+} from './makerworld-import.util';
 
 // Spec 27 §6 "MakerWorld-Import" (Vorschläge-Review, unverändert: kein
 // Kategorie-Eintrag -> Kategorie kommt von MakerWorld, Produkt bleibt
@@ -31,123 +46,11 @@ import { MakerworldPlateMapping } from '../../../shared/makerworld-plates/makerw
 // aktiv, keine Kalkulation). Beide Wege teilen sich diesen Screen und die
 // bestehende Vorschau-/Anlege-Logik je Zeile.
 
-type RowState = 'wartet' | 'lade' | 'neu' | 'vorhanden' | 'fehler';
-type ImportState = 'offen' | 'lade' | 'angelegt' | 'fehler';
-
-interface ImportRow {
-  url: string;
-  modelId: string;
-  state: RowState;
-  error: string | null;
-  preview: MakerworldImportResult | null;
-  existingProductId: string | null;
-  // editierbar
-  name: string;
-  tagsText: string;
-  selected: boolean;
-  importState: ImportState;
-  importError: string | null;
-  productId: string | null;
-  // Massenimport (Spec massenimport §2/§3): Herkunft der Zeile, aufgelöste
-  // Kategorie (CSV-Spalte oder globales Feld, null = Fallback auf
-  // MakerWorld-Kategorie wie bisher) und ob active=true gesetzt wird.
-  source: 'link' | 'csv';
-  resolvedCategory: string | null;
-  massenimport: boolean;
-  csvNameOverride: string | null;
-  csvTagsExtra: string[];
-  // 00198: Druckplatten + Zuordnung (null = nur eine Platte/Farbe)
-  plates: MakerworldPlate[];
-  mapping: PlateMappingState | null;
-  createdCount: number;
-}
-
-interface ImportEntry {
-  link: string;
-  source: 'link' | 'csv';
-  category: string | null;
-  name: string | null;
-  tags: string[];
-}
-
-// Auch ohne Sprachpfad (App-Links: makerworld.com/models/<id>?appSharePlatform=copy).
-const MODEL_ID_PATTERN = /(?<![\w-])makerworld\.com(?:\/[^\s/]+)*?\/models\/(\d+)/i;
-const PREVIEW_CONCURRENCY = 3;
-const PROGRESS_THRESHOLD = 30;
-// Optischer Hinweis beim Import (Wunsch des Betreibers, 2026-09-26), bezogen aufs ganze Modell.
-const LONG_PRINT_MINUTES = 240;
-const HEAVY_PRINT_WEIGHT_G = 200;
-
-function parseCsvLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        cur += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ',') {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += ch;
-    }
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
-
-// Weg B (CSV-Upload): Header link,category,name,tags — Spalten category/
-// name/tags optional, Reihenfolge egal, siehe specs/massenimport-makerworld-kollektion.md §2.
-function parseCsv(text: string): { entries: ImportEntry[]; error: string | null } {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) {
-    return { entries: [], error: 'CSV-Datei ist leer.' };
-  }
-  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
-  const linkIdx = header.indexOf('link');
-  if (linkIdx === -1) {
-    return { entries: [], error: 'CSV-Header muss eine Spalte „link" enthalten (link,category,name,tags).' };
-  }
-  const categoryIdx = header.indexOf('category');
-  const nameIdx = header.indexOf('name');
-  const tagsIdx = header.indexOf('tags');
-
-  const entries: ImportEntry[] = [];
-  for (const line of lines.slice(1)) {
-    const cols = parseCsvLine(line);
-    const link = (cols[linkIdx] ?? '').trim();
-    if (!link) continue;
-    const tagsCell = tagsIdx >= 0 ? (cols[tagsIdx] ?? '') : '';
-    entries.push({
-      link,
-      source: 'csv',
-      category: categoryIdx >= 0 ? (cols[categoryIdx]?.trim() || null) : null,
-      name: nameIdx >= 0 ? (cols[nameIdx]?.trim() || null) : null,
-      tags: tagsCell
-        .split(',')
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0),
-    });
-  }
-  return { entries, error: null };
-}
-
 @Component({
   selector: 'app-admin-makerworld-import',
   standalone: true,
   imports: [
+    SelectModule,
     MakerworldPlateMapping,
     FormsModule,
     RouterLink,
@@ -163,6 +66,8 @@ function parseCsv(text: string): { entries: ImportEntry[]; error: string | null 
   styleUrl: './admin-makerworld-import.scss',
 })
 export class AdminMakerworldImport implements OnInit {
+  private readonly messages = inject(MessageService);
+
   readonly linksText = signal('');
   // Massenimport §2: Kategorie-Freitextfeld, gilt für alle Links ohne
   // eigene CSV-Kategorie (Weg A) bzw. als Fallback für leere CSV-Zellen (Weg B).
@@ -225,10 +130,17 @@ export class AdminMakerworldImport implements OnInit {
   ngOnInit(): void {
     const link = this.route.snapshot.queryParamMap.get('link');
     const suggestion = this.route.snapshot.queryParamMap.get('suggestion');
+    // neu=1: aus dem Produkt-Editor „Neu einlesen“ (00202) — nach der
+    // Vorschau direkt die Rückfrage zum Neu-Einlesen zeigen.
+    const reimport = this.route.snapshot.queryParamMap.get('neu') === '1';
     if (link) {
       this.linksText.set(link);
       this.suggestionId.set(suggestion);
-      void this.loadPreview();
+      void this.loadPreview().then(() => {
+        if (!reimport) return;
+        const row = this.rows().find((r) => r.state === 'vorhanden');
+        if (row) void this.reimport(row);
+      });
     }
   }
 
@@ -337,6 +249,7 @@ export class AdminMakerworldImport implements OnInit {
           existingProductId: null,
           name: '',
           tagsText: '',
+          description: '',
           selected: false,
           importState: 'offen',
           importError: null,
@@ -344,6 +257,8 @@ export class AdminMakerworldImport implements OnInit {
           source: entry.source,
           resolvedCategory: null,
           massenimport: false,
+          ownCategory: entry.category ?? null,
+          profileId: null,
           csvNameOverride: entry.name,
           csvTagsExtra: entry.tags,
           plates: [],
@@ -362,6 +277,7 @@ export class AdminMakerworldImport implements OnInit {
         existingProductId: null,
         name: '',
         tagsText: '',
+        description: '',
         selected: false,
         importState: 'offen',
         importError: null,
@@ -369,6 +285,8 @@ export class AdminMakerworldImport implements OnInit {
         source: entry.source,
         resolvedCategory: category,
         massenimport,
+        ownCategory: entry.category ?? null,
+        profileId: null,
         csvNameOverride: entry.name,
         csvTagsExtra: entry.tags,
         plates: [],
@@ -395,32 +313,7 @@ export class AdminMakerworldImport implements OnInit {
         while (queue.length > 0) {
           const row = queue.shift();
           if (!row) return;
-          this.patchRow(row.modelId, { state: 'lade' });
-          try {
-            const preview = await this.workerApi.importMakerworldEstimates(accessToken, row.url);
-            const images = Array.isArray(preview.images) ? preview.images : [];
-            const tags = Array.isArray(preview.tags) ? preview.tags : [];
-            const tagsDe = Array.isArray(preview.tagsDe) && preview.tagsDe.length > 0 ? preview.tagsDe : tags;
-            const normalized: MakerworldImportResult = { ...preview, images, tags, tagsDe };
-            const name = (row.csvNameOverride ?? preview.titleDe ?? preview.title ?? '').trim();
-            const mergedTags = mergeTagsCaseInsensitive(tagsDe, row.csvTagsExtra);
-            const plates = Array.isArray(preview.plates) ? preview.plates : [];
-            this.patchRow(row.modelId, {
-              state: 'neu',
-              preview: { ...normalized, plates },
-              plates,
-              mapping: hasPlateChoice(plates) ? defaultMappingState(plates, name) : null,
-              name,
-              tagsText: mergedTags.join(', '),
-              selected: name.length > 0,
-            });
-          } catch (e) {
-            const err = e as { error?: { error?: string } };
-            this.patchRow(row.modelId, {
-              state: 'fehler',
-              error: err?.error?.error ?? 'MakerWorld-Abfrage fehlgeschlagen.',
-            });
-          }
+          await this.fetchPreview(row, accessToken);
         }
       };
       await Promise.all(Array.from({ length: PREVIEW_CONCURRENCY }, () => worker()));
@@ -431,8 +324,82 @@ export class AdminMakerworldImport implements OnInit {
     }
   }
 
+  /** Vorschau einer Zeile vom Worker laden (auch für „Neu einlesen“). */
+  private async fetchPreview(row: ImportRow, accessToken: string): Promise<void> {
+    this.patchRow(row.modelId, { state: 'lade' });
+    try {
+      const preview = await this.workerApi.importMakerworldEstimates(accessToken, row.url, row.profileId);
+      const images = Array.isArray(preview.images) ? preview.images : [];
+      const tags = Array.isArray(preview.tags) ? preview.tags : [];
+      const tagsDe = Array.isArray(preview.tagsDe) && preview.tagsDe.length > 0 ? preview.tagsDe : tags;
+      const normalized: MakerworldImportResult = { ...preview, images, tags, tagsDe };
+      const name = (row.csvNameOverride ?? preview.titleDe ?? preview.title ?? '').trim();
+      const mergedTags = mergeTagsCaseInsensitive(tagsDe, row.csvTagsExtra);
+      const plates = Array.isArray(preview.plates) ? preview.plates : [];
+      this.patchRow(row.modelId, {
+        state: 'neu',
+        preview: { ...normalized, plates },
+        plates,
+        mapping: hasPlateChoice(plates)
+          ? applyPlateAnalysis(defaultMappingState(plates, name), plates, preview.plateAnalysis, true)
+          : null,
+        name,
+        tagsText: mergedTags.join(', '),
+        description: preview.descriptionDe?.trim() ?? '',
+        // Mehrfarbdruck (AMS) nicht vorauswählen (Entscheidung Betreiber 2026-11-15)
+        // unsichere KI-Einordnung ebenfalls nicht vorauswählen
+        selected:
+          name.length > 0 &&
+          multicolorPlateNos(plates).length === 0 &&
+          (!hasPlateChoice(plates) || preview.plateAnalysis?.confident !== false),
+      });
+    } catch (e) {
+      const err = e as { error?: { error?: string } };
+      this.patchRow(row.modelId, {
+        state: 'fehler',
+        error: err?.error?.error ?? 'MakerWorld-Abfrage fehlgeschlagen.',
+      });
+    }
+  }
+
+  /**
+   * „Neu einlesen“ (Migration 00202, Entscheidung Betreiber 2026-11-14): bisherige
+   * Produkte des Modells entfernen (mit Bestellungen o. ä. nur deaktivieren),
+   * danach die Vorschau wie bei einem neuen Modell laden.
+   */
+  async reimport(row: ImportRow): Promise<void> {
+    const accessToken = this.authService.session()?.access_token;
+    if (!accessToken || this.importing() || this.loadingPreview()) return;
+    const ok = window.confirm(
+      `Modell ${row.modelId} neu einlesen?
+
+Die bisherigen Produkte dieses Modells werden entfernt. ` +
+        'Produkte mit Bestellungen, Angeboten o. ä. werden nur deaktiviert.',
+    );
+    if (!ok) return;
+    this.patchRow(row.modelId, { state: 'lade', error: null });
+    try {
+      const result = await this.makerworldService.resetModel(row.modelId);
+      const parts = [`${result.deleted} entfernt`];
+      if (result.deactivated > 0) parts.push(`${result.deactivated} deaktiviert`);
+      this.messages.add({ severity: 'success', summary: 'Alte Produkte: ' + parts.join(', ') });
+    } catch (e) {
+      const err = e as { message?: string };
+      this.patchRow(row.modelId, { state: 'vorhanden', error: null });
+      this.messages.add({ severity: 'error', summary: 'Neu einlesen fehlgeschlagen', detail: err?.message ?? '' });
+      return;
+    }
+    this.patchRow(row.modelId, { existingProductId: null, importState: 'offen', importError: null, productId: null, createdCount: 0 });
+    await this.fetchPreview({ ...row, existingProductId: null }, accessToken);
+  }
+
   updateName(row: ImportRow, name: string): void {
     this.patchRow(row.modelId, { name, selected: row.selected && name.trim().length > 0 });
+  }
+
+  /** Link zur 3D-Ansicht des gewählten Druckprofils auf MakerWorld. */
+  viewerUrl(row: ImportRow): string | null {
+    return makerworldViewerUrl(row.preview?.sourceUrl ?? row.url, row.preview?.printProfile?.profileId);
   }
 
   updateMapping(row: ImportRow, mapping: PlateMappingState): void {
@@ -456,6 +423,10 @@ export class AdminMakerworldImport implements OnInit {
       printTimeMin: row.preview?.estimatedPrintMinutes ?? null,
       imageUrl: row.preview?.images[0] ?? null,
     });
+  }
+
+  updateDescription(row: ImportRow, description: string): void {
+    this.patchRow(row.modelId, { description });
   }
 
   updateTags(row: ImportRow, tagsText: string): void {
@@ -505,8 +476,56 @@ export class AdminMakerworldImport implements OnInit {
     return h > 0 ? `${h} h ${m} min` : `${m} min`;
   }
 
+  /** Kategorie zum Zeitpunkt des Anlegens: CSV-Zeile, sonst globales Feld. */
+  private currentCategory(row: ImportRow): string | null {
+    return this.resolveCategory(row.ownCategory);
+  }
+
+  /** Mit Kategorie (Massenimport) wird aktiv angelegt (Spec massenimport §3.4). */
+  isMassenimport(row: ImportRow): boolean {
+    return this.currentCategory(row) !== null;
+  }
+
+  /** Auswahlliste der Druckprofile (Standard-Drucker zuerst). */
+  profileOptions(row: ImportRow): { label: string; value: number }[] {
+    const profiles = [...(row.preview?.profiles ?? [])].sort((a, b) => Number(b.isTarget) - Number(a.isTarget));
+    return profiles.map((p) => ({
+      label:
+        `${p.printer ?? 'Drucker ?'} – ${p.title ?? 'Profil ' + p.id}` +
+        ` (${p.plateCount} ${p.plateCount === 1 ? 'Platte' : 'Platten'}${p.multicolor ? ', mehrfarbig' : ''})`,
+      value: p.id,
+    }));
+  }
+
+  currentProfileId(row: ImportRow): number | null {
+    return row.profileId ?? row.preview?.printProfile?.profileId ?? null;
+  }
+
+  /** Gewähltes Profil ist mehrfarbig, es gibt aber ein einfarbiges. */
+  hasSingleColorAlternative(row: ImportRow): boolean {
+    const profiles = row.preview?.profiles ?? [];
+    const current = profiles.find((p) => p.id === this.currentProfileId(row));
+    return !!current?.multicolor && profiles.some((p) => !p.multicolor);
+  }
+
+  async changeProfile(row: ImportRow, profileId: number | null): Promise<void> {
+    const accessToken = this.authService.session()?.access_token;
+    if (!accessToken || !profileId || profileId === this.currentProfileId(row)) return;
+    this.patchRow(row.modelId, { profileId });
+    await this.fetchPreview({ ...row, profileId }, accessToken);
+  }
+
+  analysisHint(row: ImportRow): string | null {
+    return plateAnalysisHint(row.preview?.plateAnalysis, true);
+  }
+
+  /** Platten mit mehreren Filamenten (AMS), entfernte Farben berücksichtigt. */
+  multicolorPlates(row: ImportRow): number[] {
+    return multicolorPlateNos(row.plates, row.mapping?.removedAreas ?? []);
+  }
+
   categoryOf(row: ImportRow): string | null {
-    return row.resolvedCategory ?? row.preview?.category ?? null;
+    return this.currentCategory(row) ?? row.preview?.category ?? null;
   }
 
   private parseTags(text: string): string[] {
@@ -552,13 +571,18 @@ export class AdminMakerworldImport implements OnInit {
               weightG: planned.weightG,
               printTimeMin: planned.printTimeMin,
               suggestionId: this.suggestionId(),
-              active: row.massenimport,
+              active: this.isMassenimport(row),
               plateNo: planned.plateNo,
               parts: planned.parts,
+              variants: planned.variants ?? null,
+              // Modellgröße gilt nur bei einem Produkt je Modell, nicht je Platte.
+              sizeLabel: plan.length === 1 ? (row.preview.sizeHint ?? null) : null,
+              // Beschreibung beschreibt das ganze Modell, daher nicht je Platte.
+              description: plan.length === 1 ? row.description : null,
             });
             productId ??= id;
           }
-          this.patchRow(row.modelId, { importState: 'angelegt', productId, createdCount: plan.length, selected: false });
+          this.patchRow(row.modelId, { importState: 'angelegt', productId, createdCount: plan.length, selected: false, massenimport: this.isMassenimport(row) });
         } catch (e) {
           const err = e as { message?: string };
           this.patchRow(row.modelId, { importState: 'fehler', importError: err?.message ?? 'Anlegen fehlgeschlagen.' });

@@ -9,6 +9,8 @@
     optionLabel="label"
     optionValue="value"
     placeholder="Status filtern"
+    [maxSelectedLabels]="2"
+    selectedItemsLabel="{0} Status gewählt"
     class="status-filter"
   />
 </div>
@@ -19,21 +21,28 @@
   <p-skeleton height="3rem" styleClass="mb-2" />
   <p-skeleton height="3rem" />
 } @else {
-  <p-table [value]="filteredOrders()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+  <!-- Sortierbar per Spaltenkopf, Standard: neueste zuerst (Review C24) -->
+  <p-table [value]="filteredOrders()" [rows]="20" [paginator]="true" sortField="created_at" [sortOrder]="-1" class="stack-on-mobile">
     <ng-template #header>
       <tr>
-        <th>Bestellnummer</th>
-        <th>Kunde</th>
-        <th>Status</th>
-        <th>Erstellt</th>
+        <th pSortableColumn="order_number">Bestellnummer <p-sort-icon field="order_number" /></th>
+        <th pSortableColumn="customerName">Kunde <p-sort-icon field="customerName" /></th>
+        <th pSortableColumn="status">Status <p-sort-icon field="status" /></th>
+        <th pSortableColumn="created_at">Erstellt <p-sort-icon field="created_at" /></th>
       </tr>
     </ng-template>
     <ng-template #body let-order>
-      <tr class="order-row" (click)="openOrder(order)">
-        <td>
+      <tr
+        class="order-row"
+        tabindex="0"
+        [attr.aria-label]="'Bestellung ' + order.order_number + ' öffnen'"
+        (click)="openOrder(order)"
+        (keydown.enter)="openOrder(order)"
+      >
+        <td data-label="Bestellnummer">
           {{ order.order_number }}
           @if (order.hasExceptionItems) {
-            <p-tag value="Ausnahmepfad" severity="warn" styleClass="ml-2" />
+            <p-tag value="Ohne Katalogprodukt" severity="warn" styleClass="ml-2" />
           }
           @if (order.customerMessage) {
             <button
@@ -52,9 +61,9 @@
             </p-popover>
           }
         </td>
-        <td>{{ order.customerName }}</td>
-        <td><p-tag [value]="order.status" [severity]="statusSeverity(order.status)" /></td>
-        <td>{{ order.created_at | date: 'dd.MM.yyyy HH:mm' }}</td>
+        <td data-label="Kunde">{{ order.customerName }}</td>
+        <td data-label="Status"><p-tag [value]="order.status | statusLabel" [severity]="statusSeverity(order.status)" /></td>
+        <td data-label="Erstellt">{{ order.created_at | date: 'dd.MM.yyyy HH:mm' }}</td>
       </tr>
     </ng-template>
     <ng-template #emptymessage>

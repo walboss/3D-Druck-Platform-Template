@@ -16,7 +16,7 @@
   <p-skeleton height="3rem" styleClass="mb-2" />
   <p-skeleton height="3rem" />
 } @else {
-  <p-table [value]="printers()" styleClass="stack-on-mobile">
+  <p-table [value]="printers()" class="stack-on-mobile">
     <ng-template #header>
       <tr>
         <th>Standard</th>
@@ -43,7 +43,7 @@
             (click)="setDefault(printer)"
           ></p-button>
         </td>
-        <td data-label="Name">
+        <td data-label="Name" class="col-primary">
           <strong>{{ printer.name }}</strong>
           @if (printer.is_default) {
             <span class="default-badge">Standard</span>
@@ -92,7 +92,7 @@
     <label for="printerRate">Maschinenstundensatz (€/h) *</label>
     <p-inputnumber inputId="printerRate" [ngModel]="formRate()" (ngModelChange)="formRate.set($event)" [min]="0" [minFractionDigits]="2" [maxFractionDigits]="2" suffix=" €/h" locale="de-DE" styleClass="w-full" />
   </div>
-  <p class="hint">Hinweis: Die Preiskalkulation nutzt weiterhin den Maschinenstundensatz aus den Settings.</p>
+  <p class="hint">Hinweis: Die Preiskalkulation nutzt weiterhin den Maschinenstundensatz aus den Einstellungen.</p>
   @if (dialogError()) {
     <p-message severity="error">{{ dialogError() }}</p-message>
   }

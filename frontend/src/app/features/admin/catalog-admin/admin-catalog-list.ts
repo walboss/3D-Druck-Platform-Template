@@ -1,4 +1,5 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { MessageService } from 'primeng/api';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
@@ -12,7 +13,8 @@ import { DialogModule } from 'primeng/dialog';
 import { AutoCompleteModule, AutoCompleteCompleteEvent } from 'primeng/autocomplete';
 
 import { AdminCatalogService, AdminProductListRow } from '../../../core/services/admin-catalog.service';
-import { AdminMakerworldService } from '../../../core/services/admin-makerworld.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { WorkerApiService } from '../../../core/services/worker-api.service';
 
 @Component({
   selector: 'app-admin-catalog-list',
@@ -35,7 +37,6 @@ export class AdminCatalogList implements OnInit {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly products = signal<AdminProductListRow[]>([]);
-  readonly openSuggestions = signal(0);
 
   // "Nur ohne Kategorie": schnelles Nachpflegen für Kategorie-Filter/Saisons
   // im Katalog (Migration 00187).
@@ -56,11 +57,71 @@ export class AdminCatalogList implements OnInit {
   readonly knownCategories = signal<string[]>([]);
   readonly categorySuggestions = signal<string[]>([]);
 
+  private readonly messages = inject(MessageService);
+  private readonly auth = inject(AuthService);
+  private readonly workerApi = inject(WorkerApiService);
+
+  // „Beschreibungen ergänzen“ (Entscheidung Betreiber 2026-11-15): KI-Vorschlag
+  // für alle Produkte ohne Beschreibung, nichts wird überschrieben.
+  readonly describing = signal(false);
+  readonly describeProgress = signal<{ done: number; total: number } | null>(null);
+
   constructor(
     private readonly catalogService: AdminCatalogService,
-    private readonly makerworldService: AdminMakerworldService,
     private readonly router: Router,
   ) {}
+
+  async fillDescriptions(): Promise<void> {
+    const token = this.auth.session()?.access_token;
+    if (!token || this.describing()) return;
+    this.describing.set(true);
+    try {
+      const candidates = await this.catalogService.listProductsWithoutDescription();
+      if (candidates.length === 0) {
+        this.messages.add({ severity: 'info', summary: 'Alle Produkte haben schon eine Beschreibung' });
+        return;
+      }
+      const ok = window.confirm(
+        `${candidates.length} Produkte ohne Beschreibung.
+
+Für jedes einen kurzen KI-Text erzeugen und speichern? ` +
+          'Vorhandene Beschreibungen werden nicht verändert; du kannst jeden Text später im Editor ändern.',
+      );
+      if (!ok) return;
+      let done = 0;
+      let failed = 0;
+      this.describeProgress.set({ done, total: candidates.length });
+      const queue = [...candidates];
+      const worker = async (): Promise<void> => {
+        for (let c = queue.shift(); c; c = queue.shift()) {
+          try {
+            const text = await this.workerApi.generateDescription(token, {
+              title: c.name,
+              tags: c.tags,
+              sizeHint: c.sizeHint,
+              parts: c.parts,
+            });
+            await this.catalogService.setDescriptionIfEmpty(c.id, text);
+          } catch {
+            failed++;
+          }
+          done++;
+          this.describeProgress.set({ done, total: candidates.length });
+        }
+      };
+      await Promise.all([worker(), worker()]);
+      this.messages.add({
+        severity: failed > 0 ? 'warn' : 'success',
+        summary: `${done - failed} Beschreibungen ergänzt`,
+        detail: failed > 0 ? `${failed} fehlgeschlagen – einfach erneut starten.` : undefined,
+      });
+    } catch (e) {
+      this.messages.add({ severity: 'error', summary: 'Beschreibungen ergänzen fehlgeschlagen', detail: (e as Error)?.message });
+    } finally {
+      this.describing.set(false);
+      this.describeProgress.set(null);
+    }
+  }
 
   ngOnInit(): void {
     this.load();
@@ -71,12 +132,6 @@ export class AdminCatalogList implements OnInit {
     this.error.set(null);
     try {
       this.products.set(await this.catalogService.listProducts());
-      // Anzahl offener Kundenvorschläge (Spec 27 §6); Fehler hier blockieren
-      // die Liste nicht.
-      this.makerworldService
-        .countOpenSuggestions()
-        .then((n) => this.openSuggestions.set(n))
-        .catch(() => this.openSuggestions.set(0));
     } catch {
       this.error.set('Produkte konnten nicht geladen werden.');
     } finally {
@@ -135,22 +190,6 @@ export class AdminCatalogList implements OnInit {
 
   createProduct(): void {
     this.router.navigate(['/admin/katalog/neu']);
-  }
-
-  openMasterData(): void {
-    this.router.navigate(['/admin/katalog/stammdaten']);
-  }
-
-  openSeasons(): void {
-    this.router.navigate(['/admin/katalog/saisons']);
-  }
-
-  openImport(): void {
-    this.router.navigate(['/admin/katalog/import']);
-  }
-
-  openSuggestions_(): void {
-    this.router.navigate(['/admin/katalog/vorschlaege']);
   }
 
   formatPriceRange(product: AdminProductListRow): string {

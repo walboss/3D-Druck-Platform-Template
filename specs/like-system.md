@@ -32,7 +32,7 @@ Aktuelle Like-Anzahl je Produkt = `COUNT(*) FROM product_likes WHERE product_id 
 
 ## 5. Frontend
 
-- **Katalog-Karte:** Herz-/Daumen-Icon + Like-Anzahl, antippbar (Toggle), optimistisches UI-Update.
+- **Katalog-Karte:** Herz-/Daumen-Icon + Like-Anzahl, antippbar (Toggle), optimistisches UI-Update. Bei 0 Likes nur das Herz ohne Zahl (Entscheidung 2026-11-14 — Review L8).
 - **Produktdetail:** gleiches Icon + Anzahl, prominenter.
 - **Sortierung im Katalog** (`17-storefront-katalog-checkout.md` §1): neue Option "Beliebteste zuerst" neben den bestehenden (Preis auf-/absteigend, Neu zuerst) — sortiert nach `COUNT(product_likes)` absteigend. Hinweis: "Preis auf-/absteigend" bleibt nur relevant, wenn `storefront_prices_visible=true` — unabhängig von dieser Aufgabe, nur zur Einordnung.
 - **Neuer Nav-Punkt "Likes"** (Route z. B. `/likes`): zeigt alle Produkte, die dieser Visitor (per Cookie) geliked hat, im gleichen Karten-Grid-Layout wie der Katalog. Leerzustand ("Noch keine Likes") analog zu leerem Suchergebnis im Katalog. Kein eigener Guard/Flag nötig — wie der Rest des Like-Systems unabhängig vom Privatmodus immer erreichbar.

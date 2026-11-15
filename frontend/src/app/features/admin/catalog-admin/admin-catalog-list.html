@@ -1,10 +1,13 @@
 <div class="header-row">
   <h1>Katalogpflege</h1>
   <div class="header-actions">
-    <p-button severity="secondary" label="Farben &amp; Finishes" icon="pi pi-palette" (click)="openMasterData()"></p-button>
-    <p-button severity="secondary" label="Saison-Kategorien" icon="pi pi-calendar" (click)="openSeasons()"></p-button>
-    <p-button severity="secondary" label="MakerWorld-Import" icon="pi pi-download" (click)="openImport()"></p-button>
-    <p-button severity="secondary" [label]="'Vorschläge' + (openSuggestions() > 0 ? ' (' + openSuggestions() + ')' : '')" icon="pi pi-lightbulb" (click)="openSuggestions_()"></p-button>
+    <p-button
+      severity="secondary"
+      icon="pi pi-align-left"
+      [label]="describeProgress() ? 'Beschreibungen ' + describeProgress()!.done + ' / ' + describeProgress()!.total : 'Beschreibungen ergänzen'"
+      [loading]="describing()"
+      (click)="fillDescriptions()"
+    ></p-button>
     <p-button label="Neues Produkt" icon="pi pi-plus" (click)="createProduct()"></p-button>
   </div>
 </div>
@@ -42,7 +45,7 @@
     </p-tablist>
     <p-tabpanels>
       <p-tabpanel value="0">
-        <p-table [value]="activeProducts()" [rows]="20" [paginator]="true" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
+        <p-table [value]="activeProducts()" [rows]="20" [paginator]="true" class="stack-on-mobile" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
           <ng-template #header>
             <tr>
               <th class="select-col"><p-table-header-checkbox /></th>
@@ -56,19 +59,19 @@
           </ng-template>
           <ng-template #body let-product>
             <tr>
-              <td class="select-col"><p-table-checkbox [value]="product" /></td>
-              <td class="name-cell" (click)="openProduct(product)">{{ product.name }}</td>
-              <td>
+              <td class="select-col" data-label="Auswählen"><p-table-checkbox [value]="product" /></td>
+              <td class="name-cell col-primary" data-label="Name" (click)="openProduct(product)">{{ product.name }}</td>
+              <td data-label="Kategorie">
                 @if (product.category?.trim()) {
                   {{ product.category }}
                 } @else {
                   <span class="missing-category">fehlt</span>
                 }
               </td>
-              <td>{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
-              <td>{{ formatPriceRange(product) }}</td>
-              <td>{{ formatPrintTimeRange(product) }}</td>
-              <td>
+              <td data-label="Mehrfarbig">{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
+              <td data-label="Preis">{{ formatPriceRange(product) }}</td>
+              <td data-label="Laufzeit">{{ formatPrintTimeRange(product) }}</td>
+              <td data-label="Aktiv">
                 <p-toggleswitch [ngModel]="product.active" (ngModelChange)="toggleActive(product, $event)" />
               </td>
             </tr>
@@ -80,7 +83,7 @@
       </p-tabpanel>
 
       <p-tabpanel value="1">
-        <p-table [value]="hiddenProducts()" [rows]="20" [paginator]="true" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
+        <p-table [value]="hiddenProducts()" [rows]="20" [paginator]="true" class="stack-on-mobile" dataKey="id" [selection]="selectedProducts()" (selectionChange)="selectedProducts.set($event)">
           <ng-template #header>
             <tr>
               <th class="select-col"><p-table-header-checkbox /></th>
@@ -94,19 +97,19 @@
           </ng-template>
           <ng-template #body let-product>
             <tr>
-              <td class="select-col"><p-table-checkbox [value]="product" /></td>
-              <td class="name-cell" (click)="openProduct(product)">{{ product.name }}</td>
-              <td>
+              <td class="select-col" data-label="Auswählen"><p-table-checkbox [value]="product" /></td>
+              <td class="name-cell" data-label="Name" (click)="openProduct(product)">{{ product.name }}</td>
+              <td data-label="Kategorie">
                 @if (product.category?.trim()) {
                   {{ product.category }}
                 } @else {
                   <span class="missing-category">fehlt</span>
                 }
               </td>
-              <td>{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
-              <td>{{ formatPriceRange(product) }}</td>
-              <td>{{ formatPrintTimeRange(product) }}</td>
-              <td>
+              <td data-label="Mehrfarbig">{{ product.isMulticolor ? 'Ja' : 'Nein' }}</td>
+              <td data-label="Preis">{{ formatPriceRange(product) }}</td>
+              <td data-label="Laufzeit">{{ formatPrintTimeRange(product) }}</td>
+              <td data-label="Aktiv">
                 <p-toggleswitch [ngModel]="product.active" (ngModelChange)="toggleActive(product, $event)" />
               </td>
             </tr>

@@ -34,7 +34,7 @@ Kunden können individuelle Wünsche einreichen (eigenes Modell/Link, Wunschgrö
 |---|---|---|
 | id | PK | |
 | custom_request_id | FK → `custom_requests` | |
-| slot_label | text | z. B. „Slot 1" — aus 3mf-Datei übernommen oder manuell vom Admin vergeben. **Keine** semantische Teile-Bezeichnung wie „Kopf"/„Sockel", da eine Slice-Datei nur Slot/Farbe-Zuordnungen liefert, keine Teilnamen |
+| slot_label | text | z. B. „Slot 1" — aus 3mf-Datei übernommen oder manuell vom Admin vergeben. Im Storefront-Formular kann der Kunde je Slot optional einen Teilenamen als Hinweis angeben; gespeichert wird dann „Slot 1 – Kopf". Die Zuordnung bleibt slot-basiert, der Name ist nur Hinweis für den Admin (Entscheidung 2026-11-14 — Review A6) |
 | color_id | FK nullable → `colors` | |
 | finish_id | FK nullable → `finishes` | |
 

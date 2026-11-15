@@ -127,6 +127,75 @@ Umgesetzt in Migration 00161.
 4. Je Zeile `fn_import_makerworld_product`. Ergebnisspalte: „angelegt“ mit Link
    zum Editor, oder Fehler. Keine Abbrüche bei Einzel-Fehlern.
 
+### Platten & Farben (Import und Produkt-Editor, Migration 00198)
+- Einzelne Farbe einer Platte entfernbar (×): Gramm und anteilige Druckzeit
+  gehen an die größte verbleibende Farbe derselben Platte; die letzte Farbe
+  einer Platte bleibt. Rückgängig je Farbe möglich. Bleibt nur eine Farbe,
+  wird das Produkt einfarbig (Entscheidung 2026-11-14).
+- Link „3D-Ansicht auf MakerWorld“ zum gewählten Druckprofil
+  (`#profileId-<id>`). Einbetten der 3D-Vorschau ist nicht möglich
+  (MakerWorld sendet `X-Frame-Options: SAMEORIGIN`).
+- Plattennamen des Erstellers (`plates[].name`, z. B. „Scarf & Hat“) liest
+  der Worker mit und übersetzt sie wie Titel/Tags per Workers AI
+  (`nameDe`, best-effort, je Name ein Aufruf, max. 12 je Modell). Sie sind
+  Vorschlag für Teil- und Produktnamen (statt „Platte N“); ohne Namen oder
+  Übersetzung wie bisher (Entscheidung 2026-11-14).
+
+### Beschreibung (Migration 00203)
+- Der Worker schlägt eine eigene kurze deutsche Beschreibung vor
+  (`descriptionDe`, Workers AI, 1–2 sachliche Sätze, max. 200 Zeichen) — nur aus Titel, Tags,
+  Größe und Teilnamen, die MakerWorld-Beschreibung wird nicht verwendet.
+  Import-Vorschau und Produkt-Editor zeigen sie editierbar; bei „Je Platte
+  ein Produkt“ wird sie nicht übernommen. Beschreibungsfeld im Editor wieder
+  sichtbar (Entscheidung 2026-11-14; ersetzt die Ausblendung vom
+  2026-09-19).
+
+- Katalogpflege: Knopf „Beschreibungen ergänzen“ — erzeugt für alle Produkte
+  ohne Beschreibung denselben KI-Kurztext (Worker `POST /api/admin/beschreibung`,
+  Eingaben aus der DB: Name, Tags, Größe, Teile) und speichert ihn; vorhandene
+  Beschreibungen werden nie überschrieben (Entscheidung 2026-11-15).
+- Nachbearbeitung im Worker: Satzteile wie „Größe nicht angegeben“ oder
+  „besteht aus einem Teil“ werden entfernt (Modell hält sich nicht immer an
+  den Prompt).
+- Import: Kategorie und „aktiv anlegen“ werden beim Anlegen bestimmt (auch
+  ein nach der Vorschau eingetragenes Kategoriefeld zählt).
+
+### Mehrfarbdruck, KI-Einordnung, Varianten (Migration 00204)
+- Mehrfarbdruck (AMS) = mindestens eine Platte mit mehreren Filamenten
+  (getrennte Platten je Farbe zählen nicht). Solche Zeilen werden im Import
+  nicht vorausgewählt, Hinweis „Mehrfarbdruck (AMS)“; nach Entfernen der
+  Zusatzfarbe (×) oder bewusst anhakbar (Entscheidung 2026-11-15).
+- KI-Einordnung (Worker `plateAnalysis`, ab 2 Platten): LLaVA beschreibt jedes
+  Plattenbild, Llama 3.3 schlägt vor: Teile eines Stücks / Varianten
+  (Alternativen) / je Platte ein Produkt / einfarbig, mit Teilnamen und
+  Varianten-Gruppen. Nur Vorschlag (Hinweis an der Zuordnung); unsichere
+  Einordnung → Zeile nicht vorausgewählt, Hinweis „KI unsicher“.
+- Modus „Varianten (Alternativen)“ im Massenimport: Varianten aus Platten-
+  Gruppen (z. B. „Einteilig“ = Platte 1, „Zweifarbig“ = Platte 2+3);
+  `fn_import_makerworld_product` + `p_variants` legt je Gruppe eine Variante
+  mit eigenen Teilen an (Teile je Variante). Im Produkt-Editor nur Hinweis.
+- Profilauswahl (Entscheidung 2026-11-15): Worker liefert alle
+  Druckprofile (`profiles`: Drucker, Titel, Plattenzahl, mehrfarbig,
+  Standard-Drucker) und nimmt optional `profileId`. Im Import Auswahlfeld
+  „Druckprofil“ je Modell (Standard-Drucker vorausgewählt); ist das gewählte
+  Profil mehrfarbig, gibt es aber ein einfarbiges, Hinweis „Einfarbiges
+  Profil verfügbar“. Werte stammen dann vom anderen Drucker.
+- KI-Einordnung nutzt den JSON-Modus von Workers AI und berechnete Hinweise
+  (gleich schwere/lange Platten; eine Platte ≈ Summe der anderen).
+
+### Neu einlesen (Migration 00202)
+- Bei Status „Bereits im Katalog“ Knopf „Neu einlesen“ (mit Rückfrage):
+  `fn_makerworld_reset_model` entfernt die bisherigen Produkte des Modells
+  (inkl. Varianten, Teile, Warenkorb-Einträge, Likes). Hängen Bestellungen,
+  Angebote, Sets o. ä. daran, wird das Produkt nur deaktiviert und von der
+  Modell-ID gelöst. Danach normale Vorschau (Entscheidung 2026-11-14).
+- Bewusste Ausnahme von Prinzip #2 („Produkte deaktivieren statt löschen“):
+  Produkte ohne Bestellungen/Angebote o. ä. werden beim Neu-Einlesen
+  gelöscht, nicht nur deaktiviert (bestätigt Betreiber 2026-11-15).
+- Derselbe Knopf im Produkt-Editor (Produkte mit MakerWorld-Link): öffnet den
+  Import mit `?link=…&neu=1`, der nach der Vorschau direkt die Rückfrage zum
+  Neu-Einlesen zeigt (Wunsch des Betreibers, 2026-11-15).
+
 ### Admin: Katalogpflege → „Vorschläge" (Liste, Route `/admin/katalog/vorschlaege`)
 - Tabelle offener Vorschläge: Link, Notiz, Datum. Buttons „Importieren"
   (öffnet dieselbe Vorschau wie oben, vorbefüllt mit dem einen Link) und

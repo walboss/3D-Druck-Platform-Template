@@ -8,7 +8,7 @@
   @if (banner().images.length > 0) {
     <div class="season-banner-images">
       @for (img of banner().images; track img) {
-        <img [src]="img" alt="" loading="lazy" />
+        <img [appSizedSrc]="img" [appSizedWidth]="300" alt="" loading="lazy" />
       }
     </div>
   }

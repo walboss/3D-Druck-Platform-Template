@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { SupabaseClientService } from './supabase-client.service';
 import { CatalogProduct, ProductImage, VCatalogRow } from '../models/db-types';
 import { CategorySeason } from '../utils/season.util';
+import { hasDifferentPrices } from '../utils/price-prefix.util';
+import { groupCatalogRows } from '../utils/catalog-group.util';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogService {
@@ -18,55 +20,20 @@ export class CatalogService {
   }
 
   async getCatalog(): Promise<CatalogProduct[]> {
-    const [{ data: rows, error: catalogError }, { data: productMeta, error: metaError }] = await Promise.all([
-      this.supabase.client.from('v_catalog').select('*'),
-      this.supabase.client.from('products').select('id, created_at').eq('active', true),
-    ]);
-
-    if (catalogError) throw catalogError;
-    if (metaError) throw metaError;
-
-    const createdAtByProduct = new Map<string, string>();
-    for (const p of productMeta ?? []) {
-      createdAtByProduct.set(p['id'], p['created_at']);
-    }
-
-    const byProduct = new Map<string, CatalogProduct>();
-    for (const row of (rows ?? []) as VCatalogRow[]) {
-      let product = byProduct.get(row.product_id);
-      if (!product) {
-        product = {
-          product_id: row.product_id,
-          name: row.name,
-          description: row.description,
-          category: row.category,
-          tags: row.tags ?? [],
-          images: (row.images ?? []) as ProductImage[],
-          created_at: createdAtByProduct.get(row.product_id),
-          variants: [],
-          minPrice: null,
-          hasMultiplePrices: false,
-          likesCount: 0,
-          likedByMe: false,
-        };
-        byProduct.set(row.product_id, product);
-      }
-      product.variants.push(row);
-    }
-
-    for (const product of byProduct.values()) {
-      const prices = product.variants.map((v) => v.final_price).filter((p): p is number => p !== null);
-      product.minPrice = prices.length > 0 ? Math.min(...prices) : null;
-      product.hasMultiplePrices = product.variants.length > 1;
-    }
-
-    return Array.from(byProduct.values());
+    // created_at kommt seit 00205 aus v_catalog — ein Request statt zwei (Review D29)
+    const { data: rows, error } = await this.supabase.client.from('v_catalog').select('*');
+    if (error) throw error;
+    return groupCatalogRows((rows ?? []) as VCatalogRow[]);
   }
+
 
   async getProductDetail(productId: string): Promise<{
     product: CatalogProduct;
     parts: { id: string; product_id: string; name: string; sort_order: number }[];
     isMulticolor: boolean;
+    // Teile je Variante (variant_id -> product_part_ids); fehlt eine Variante,
+    // gelten alle Teile des Produkts.
+    partIdsByVariant: Record<string, string[]>;
   }> {
     const [
       { data: catalogRows, error: catalogError },
@@ -97,15 +64,27 @@ export class CatalogService {
       images: (first.images ?? []) as ProductImage[],
       variants: rows,
       minPrice: null,
-      hasMultiplePrices: rows.length > 1,
+      hasMultiplePrices: hasDifferentPrices(rows),
       likesCount: 0,
       likedByMe: false,
     };
+
+    const variantIds = rows.map((r) => r.variant_id);
+    const { data: variantParts, error: vpError } = await this.supabase.client
+      .from('variant_parts')
+      .select('variant_id, product_part_id')
+      .in('variant_id', variantIds);
+    if (vpError) throw vpError;
+    const partIdsByVariant: Record<string, string[]> = {};
+    for (const vp of variantParts ?? []) {
+      (partIdsByVariant[vp['variant_id'] as string] ??= []).push(vp['product_part_id'] as string);
+    }
 
     return {
       product,
       parts: parts ?? [],
       isMulticolor: !!productRow?.['is_multicolor'],
+      partIdsByVariant,
     };
   }
 }

@@ -1,19 +1,17 @@
+<p-toast position="top-center" />
 <div class="admin-shell" [class.menu-open]="menuOpen()">
   <header class="admin-topbar">
     <button type="button" class="menu-btn" (click)="toggleMenu()" aria-label="Menü öffnen">
       <i class="pi pi-bars"></i>
     </button>
     <span class="topbar-title">{{ currentTitle() }}</span>
-    <a routerLink="/" class="topbar-shop" title="Zum Shop" aria-label="Zum Shop">
-      <i class="pi pi-external-link"></i>
-    </a>
   </header>
 
   <div class="admin-backdrop" (click)="closeMenu()"></div>
 
   <aside class="admin-sidebar">
     <div class="admin-brand">
-      <span class="brand-icon"><i class="pi pi-box"></i></span>
+      <span class="brand-logo-chip"><img src="/brand/logo.png" alt="Mein 3D-Druck" width="165" height="112" /></span>
       <span>Admin</span>
       <button type="button" class="close-btn" (click)="closeMenu()" aria-label="Menü schließen">
         <i class="pi pi-times"></i>
@@ -28,23 +26,26 @@
           <a [routerLink]="item.path" class="nav-item" [class.active]="activePath() === item.path" (click)="closeMenu()">
             <i [class]="item.icon"></i>
             <span>{{ item.label }}</span>
-            @if (item.path === '/admin/katalog/vorschlaege' && openSuggestions() > 0) {
-              <span class="nav-badge" title="Offene Modellvorschläge">{{ openSuggestions() }}</span>
+            @if (item.badge && badges()[item.badge] > 0) {
+              <span class="nav-badge" [class.nav-badge-warn]="item.badge === 'lowStock'" [title]="badgeTitles[item.badge]">{{ badges()[item.badge] }}</span>
             }
           </a>
         }
       }
     </nav>
     <div class="sidebar-footer">
-      <button type="button" class="nav-item nav-item-muted theme-toggle-item" (click)="toggleTheme()">
-        <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
-        <span>{{ theme() === 'dark' ? 'Helles Design' : 'Dunkles Design' }}</span>
-      </button>
-      <a routerLink="/" class="nav-item nav-item-muted">
-        <i class="pi pi-external-link"></i>
-        <span>Zum Shop</span>
-      </a>
-      <p-button label="Logout" icon="pi pi-sign-out" severity="secondary" [outlined]="true" styleClass="w-full" (click)="logout()" class="logout-btn"></p-button>
+      <div class="footer-actions">
+        <button type="button" class="footer-btn" (click)="toggleTheme()" [attr.aria-label]="theme() === 'dark' ? 'Helles Design' : 'Dunkles Design'" [title]="theme() === 'dark' ? 'Helles Design' : 'Dunkles Design'">
+          <i [class]="theme() === 'dark' ? 'pi pi-sun' : 'pi pi-moon'"></i>
+        </button>
+        <a routerLink="/" class="footer-btn" title="Zum Shop" aria-label="Zum Shop">
+          <i class="pi pi-external-link"></i>
+        </a>
+        <button type="button" class="footer-btn footer-logout" (click)="logout()">
+          <i class="pi pi-sign-out"></i>
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
   </aside>
 

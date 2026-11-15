@@ -12,6 +12,7 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'katalog', pathMatch: 'full' },
       {
+        title: 'Katalog – Mein 3D-Druck',
         path: 'katalog',
         loadComponent: () =>
           import('./features/storefront/catalog/catalog-list').then((m) => m.CatalogList),
@@ -22,30 +23,36 @@ export const routes: Routes = [
           import('./features/storefront/product-detail/product-detail').then((m) => m.ProductDetail),
       },
       {
+        title: 'Likes – Mein 3D-Druck',
         path: 'likes',
         loadComponent: () => import('./features/storefront/likes/likes-list').then((m) => m.LikesList),
       },
       {
+        title: 'Wunschliste – Mein 3D-Druck',
         path: 'wunschliste',
         canActivate: [shopEnabledGuard],
         loadComponent: () => import('./features/storefront/cart/cart-view').then((m) => m.CartView),
       },
       {
+        title: 'Warenkorb – Mein 3D-Druck',
         path: 'warenkorb',
         canActivate: [shopEnabledGuard],
         loadComponent: () => import('./features/storefront/cart/cart-view').then((m) => m.CartView),
       },
       {
+        title: 'Anfrage abschicken – Mein 3D-Druck',
         path: 'anfrage-abschicken',
         canActivate: [shopEnabledGuard],
         loadComponent: () => import('./features/storefront/checkout/checkout').then((m) => m.Checkout),
       },
       {
+        title: 'Kasse – Mein 3D-Druck',
         path: 'checkout',
         canActivate: [shopEnabledGuard],
         loadComponent: () => import('./features/storefront/checkout/checkout').then((m) => m.Checkout),
       },
       {
+        title: 'Übermittelt – Mein 3D-Druck',
         path: 'uebermittelt',
         loadComponent: () =>
           import('./features/storefront/order-confirmation/order-confirmation').then(
@@ -53,6 +60,7 @@ export const routes: Routes = [
           ),
       },
       {
+        title: 'Bestellbestätigung – Mein 3D-Druck',
         path: 'bestellbestaetigung',
         loadComponent: () =>
           import('./features/storefront/order-confirmation/order-confirmation').then(
@@ -60,6 +68,7 @@ export const routes: Routes = [
           ),
       },
       {
+        title: 'Individualanfrage – Mein 3D-Druck',
         path: 'individualanfrage',
         canActivate: [customRequestEnabledGuard],
         loadComponent: () =>
@@ -68,6 +77,7 @@ export const routes: Routes = [
           ),
       },
       {
+        title: 'Modell vorschlagen – Mein 3D-Druck',
         path: 'vorschlagen',
         loadComponent: () =>
           import('./features/storefront/suggest-model/suggest-model-form').then((m) => m.SuggestModelForm),
@@ -85,11 +95,13 @@ export const routes: Routes = [
           ]
         : []),
       {
+        title: 'Angebot – Mein 3D-Druck',
         path: 'angebot/:token',
         loadComponent: () =>
           import('./features/storefront/offer-view/offer-view').then((m) => m.OfferView),
       },
       {
+        title: 'Status – Mein 3D-Druck',
         path: 'tracking/:token',
         loadComponent: () =>
           import('./features/storefront/order-tracking/order-tracking').then((m) => m.OrderTracking),
@@ -97,10 +109,12 @@ export const routes: Routes = [
     ],
   },
   {
-    path: 'admin/login',
+    title: 'Admin-Login – Mein 3D-Druck',
+        path: 'admin/login',
     loadComponent: () => import('./features/admin/login/admin-login').then((m) => m.AdminLogin),
   },
   {
+    title: 'Admin – Mein 3D-Druck',
     path: 'admin',
     loadComponent: () => import('./layouts/admin-layout/admin-layout').then((m) => m.AdminLayout),
     canActivate: [adminAuthGuard],
@@ -205,5 +219,18 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: '' },
+  // Unbekannte Adresse: „Seite nicht gefunden“ im Shop-Rahmen statt stiller
+  // Weiterleitung (Review L7).
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./layouts/storefront-layout/storefront-layout').then((m) => m.StorefrontLayout),
+    children: [
+      {
+        path: '',
+        title: 'Seite nicht gefunden – Mein 3D-Druck',
+        loadComponent: () => import('./features/storefront/not-found/not-found').then((m) => m.NotFound),
+      },
+    ],
+  },
 ];

@@ -11,7 +11,9 @@
   <div class="product-grid">
     @for (i of [1, 2, 3, 4]; track i) {
       <div class="product-card skeleton-card">
-        <p-skeleton height="100%" styleClass="skeleton-image" />
+        <div class="product-image">
+          <p-skeleton width="100%" height="100%" borderRadius="0" />
+        </div>
         <div class="product-info">
           <p-skeleton width="70%" />
           <p-skeleton width="40%" styleClass="mt-2" />
@@ -23,14 +25,15 @@
   <div class="empty-state">
     <i class="pi pi-heart"></i>
     <p>Noch keine Likes.</p>
+    <p-button label="Zum Katalog" icon="pi pi-th-large" routerLink="/katalog"></p-button>
   </div>
 } @else {
   <div class="product-grid">
     @for (product of products(); track product.product_id) {
-      <a class="product-card" (click)="openProduct(product)" tabindex="0" (keyup.enter)="openProduct(product)">
+      <a class="product-card" [routerLink]="['/produkt', product.product_id]">
         <div class="product-image">
           @if (coverImage(product)) {
-            <img [src]="coverImage(product)" [alt]="product.name" loading="lazy" />
+            <img [appSizedSrc]="coverImage(product)" [appSizedWidth]="600" [alt]="product.name" loading="lazy" />
           } @else {
             <div class="no-image"><i class="pi pi-image"></i></div>
           }
@@ -40,7 +43,9 @@
             <h3>{{ product.name }}</h3>
             <button type="button" class="like-btn liked" aria-label="Like entfernen" (click)="unlike(product, $event)">
               <i class="pi pi-heart-fill"></i>
-              <span>{{ product.likesCount }}</span>
+              @if (product.likesCount > 0) {
+                <span>{{ product.likesCount }}</span>
+              }
             </button>
           </div>
           @if (showPrices()) {

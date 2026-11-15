@@ -54,17 +54,10 @@ export interface AdminProductPart {
   sortOrder: number;
 }
 
-export interface ColorMasterRow {
-  id: string;
-  name: string;
-  hex: string | null;
-  active: boolean;
-}
-
-export interface FinishMasterRow {
-  id: string;
-  name: string;
-  active: boolean;
+export interface AdminVariantPart {
+  partId: string;
+  weightG: number;
+  printTimeMin: number;
 }
 
 export interface CostComponents {
@@ -76,6 +69,14 @@ export interface CostComponents {
   license_cost: number;
   scrap_allowance: number;
   other_cost: number;
+}
+
+export interface DescriptionCandidate {
+  id: string;
+  name: string;
+  tags: string[];
+  sizeHint: string | null;
+  parts: string[];
 }
 
 export interface CurrentCalculationVersion {
@@ -267,6 +268,43 @@ export class AdminCatalogService {
     if (error) throw error;
   }
 
+  /** Produkte ohne Beschreibung mit den Angaben für den KI-Vorschlag. */
+  async listProductsWithoutDescription(): Promise<DescriptionCandidate[]> {
+    const { data, error } = await this.supabase.client
+      .from('products')
+      .select('id, name, tags, description, is_multicolor, product_parts(name, sort_order), product_variants(size_label)')
+      .or('description.is.null,description.eq.')
+      .order('name');
+    if (error) throw error;
+    return (data ?? []).map((p) => {
+      const parts = ((p['product_parts'] ?? []) as { name: string; sort_order: number }[])
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((x) => x.name);
+      const sizes = ((p['product_variants'] ?? []) as { size_label: string | null }[])
+        .map((v) => v.size_label?.trim() ?? '')
+        .filter((s) => s && s.toLowerCase() !== 'standard');
+      return {
+        id: p['id'] as string,
+        name: p['name'] as string,
+        tags: (p['tags'] ?? []) as string[],
+        sizeHint: sizes.length === 1 ? sizes[0] : null,
+        // Teile nur bei mehrfarbigen Produkten erwähnen (einfarbig = ein Stück für den Kunden)
+        parts: p['is_multicolor'] ? parts : [],
+      };
+    });
+  }
+
+  /** Beschreibung nur setzen, wenn noch keine da ist (nichts überschreiben). */
+  async setDescriptionIfEmpty(id: string, description: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('products')
+      .update({ description, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .or('description.is.null,description.eq.');
+    if (error) throw error;
+  }
+
   async setProductActive(id: string, active: boolean): Promise<void> {
     const { error } = await this.supabase.client.from('products').update({ active }).eq('id', id);
     if (error) throw error;
@@ -351,6 +389,46 @@ export class AdminCatalogService {
     if (error) throw error;
   }
 
+  /** Teile einer Variante mit Gewicht/Druckzeit (variant_parts). */
+  async listVariantParts(variantId: string): Promise<AdminVariantPart[]> {
+    const { data, error } = await this.supabase.client
+      .from('variant_parts')
+      .select('product_part_id, weight_g, print_time_min')
+      .eq('variant_id', variantId);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({
+      partId: r['product_part_id'] as string,
+      weightG: Number(r['weight_g']),
+      printTimeMin: Number(r['print_time_min']),
+    }));
+  }
+
+  /**
+   * Teile einer Variante speichern (Teile je Variante, Wunsch des Betreibers, 2026-11-15):
+   * vorhandene Zeilen aktualisieren, neue anlegen. Entfernen geht nicht —
+   * DELETE ist für Admins gesperrt (00153, Prinzip #1); andere Zusammensetzung
+   * = neue Variante anlegen, alte deaktivieren.
+   */
+  async saveVariantParts(variantId: string, parts: AdminVariantPart[]): Promise<void> {
+    const existing = await this.listVariantParts(variantId);
+    for (const p of parts) {
+      const values = { weight_g: p.weightG, print_time_min: p.printTimeMin, material_need_g: p.weightG };
+      if (existing.some((e) => e.partId === p.partId)) {
+        const { error } = await this.supabase.client
+          .from('variant_parts')
+          .update({ ...values, updated_at: new Date().toISOString() })
+          .eq('variant_id', variantId)
+          .eq('product_part_id', p.partId);
+        if (error) throw error;
+      } else {
+        const { error } = await this.supabase.client
+          .from('variant_parts')
+          .insert({ variant_id: variantId, product_part_id: p.partId, ...values });
+        if (error) throw error;
+      }
+    }
+  }
+
   async listProductParts(productId: string): Promise<AdminProductPart[]> {
     const { data, error } = await this.supabase.client
       .from('product_parts')
@@ -359,6 +437,15 @@ export class AdminCatalogService {
       .order('sort_order');
     if (error) throw error;
     return (data ?? []).map((p) => ({ id: p['id'], name: p['name'], sortOrder: p['sort_order'] }));
+  }
+
+  /** Teil umbenennen (Teilnamen wie „Platte 1“ nachträglich verbessern). */
+  async renameProductPart(id: string, name: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('product_parts')
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
   }
 
   async createProductPart(productId: string, name: string, sortOrder: number): Promise<string> {
@@ -381,63 +468,6 @@ export class AdminCatalogService {
       material_need_g: weightG,
     });
     if (error) throw error;
-  }
-
-  // --- Stammdaten Farben/Finishes (specs/21): Liste inkl. inaktiver, Anlegen,
-  // Aktiv-Toggle über bestehendes active-Flag. Kein Löschen (Prinzip #2).
-  async listColorsMaster(): Promise<ColorMasterRow[]> {
-    const { data, error } = await this.supabase.client
-      .from('colors')
-      .select('id, name, hex, active')
-      .order('name');
-    if (error) throw error;
-    return (data ?? []).map((c) => ({ id: c['id'], name: c['name'], hex: c['hex'], active: c['active'] }));
-  }
-
-  async listFinishesMaster(): Promise<FinishMasterRow[]> {
-    const { data, error } = await this.supabase.client
-      .from('finishes')
-      .select('id, name, active')
-      .order('name');
-    if (error) throw error;
-    return (data ?? []).map((f) => ({ id: f['id'], name: f['name'], active: f['active'] }));
-  }
-
-  async createColor(name: string, hex: string | null): Promise<void> {
-    const { error } = await this.supabase.client.from('colors').insert({ name, hex, active: true });
-    if (error) throw error;
-  }
-
-  async updateColor(id: string, name: string, hex: string | null): Promise<void> {
-    const { error } = await this.supabase.client.from('colors').update({ name, hex }).eq('id', id);
-    if (error) throw error;
-  }
-
-  async createFinish(name: string): Promise<void> {
-    const { error } = await this.supabase.client.from('finishes').insert({ name, active: true });
-    if (error) throw error;
-  }
-
-  async setColorActive(id: string, active: boolean): Promise<void> {
-    const { error } = await this.supabase.client.from('colors').update({ active }).eq('id', id);
-    if (error) throw error;
-  }
-
-  async setFinishActive(id: string, active: boolean): Promise<void> {
-    const { error } = await this.supabase.client.from('finishes').update({ active }).eq('id', id);
-    if (error) throw error;
-  }
-
-  async getAllColors(): Promise<{ id: string; name: string; hex: string | null }[]> {
-    const { data, error } = await this.supabase.client.from('colors').select('id, name, hex').eq('active', true);
-    if (error) throw error;
-    return data ?? [];
-  }
-
-  async getAllFinishes(): Promise<{ id: string; name: string }[]> {
-    const { data, error } = await this.supabase.client.from('finishes').select('id, name').eq('active', true);
-    if (error) throw error;
-    return data ?? [];
   }
 
   async getCurrentCalculationVersion(variantId: string): Promise<CurrentCalculationVersion | null> {

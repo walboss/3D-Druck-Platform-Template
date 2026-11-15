@@ -14,11 +14,12 @@ import { MessageModule } from 'primeng/message';
 
 import { AdminProductionService, ProductionOrderListRow } from '../../../core/services/admin-production.service';
 import { ProductionOrderStatus } from '../../../core/models/db-types';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
 
 @Component({
   selector: 'app-admin-production-list',
   standalone: true,
-  imports: [DatePipe, FormsModule, TableModule, TagModule, ButtonModule, DialogModule, SelectModule, DatePickerModule, SkeletonModule, MessageModule],
+  imports: [StatusLabelPipe, DatePipe, FormsModule, TableModule, TagModule, ButtonModule, DialogModule, SelectModule, DatePickerModule, SkeletonModule, MessageModule],
   templateUrl: './admin-production-list.html',
   styleUrl: './admin-production-list.scss',
 })

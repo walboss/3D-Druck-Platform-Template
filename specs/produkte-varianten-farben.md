@@ -42,6 +42,15 @@ Der Produktkatalog: was verkauft wird (Produkte, Größenvarianten, Teile), in w
 
 `product_variants.weight_g` etc. sind bei Produkten mit Teilen **berechnete Summen**, keine unabhängige Wahrheit.
 
+Teile je Variante (Entscheidung Betreiber 2026-11-15): Eine Variante enthält nur
+die Teile, für die es `variant_parts`-Zeilen gibt (z. B. Pinguin „Einteilig“ =
+Teil „Komplett“, „Zweifarbig“ = „Außen“ + „Bauch“). Der Shop lässt nur für
+diese Teile eine Farbe wählen; hat eine Variante keine `variant_parts`, gelten
+alle Teile des Produkts. Pflege im Produkt-Editor (Varianten-Dialog
+„Teile dieser Variante“, Summen werden übernommen). Teile einer gespeicherten
+Variante können ergänzt und geändert, aber nicht entfernt werden (kein DELETE,
+00153 / Prinzip #1) — andere Zusammensetzung = neue Variante, alte deaktivieren.
+
 ### `colors` / `finishes`
 | id PK | name | hex (nullable, nur colors) | active |
 

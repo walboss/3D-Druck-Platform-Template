@@ -9,7 +9,7 @@
   <p-skeleton height="3rem" styleClass="mb-2" />
   <p-skeleton height="3rem" />
 } @else {
-  <p-table [value]="complaints()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+  <p-table [value]="complaints()" [rows]="20" [paginator]="true" class="stack-on-mobile">
     <ng-template #header>
       <tr>
         <th>Position</th>
@@ -21,17 +21,17 @@
     </ng-template>
     <ng-template #body let-complaint>
       <tr>
-        <td>{{ complaint.description }}</td>
-        <td>{{ complaint.reason }}</td>
-        <td>{{ complaint.reportedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
-        <td>
+        <td data-label="Position">{{ complaint.description }}</td>
+        <td data-label="Grund">{{ complaint.reason }}</td>
+        <td data-label="Gemeldet">{{ complaint.reportedAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+        <td data-label="Status">
           @if (complaint.resolvedAt) {
-            <p-tag [value]="complaint.decision ?? 'gelöst'" severity="success" />
+            <p-tag [value]="complaint.decision ? (complaint.decision | statusLabel) : 'gelöst'" severity="success" />
           } @else {
             <p-tag value="offen" severity="warn" />
           }
         </td>
-        <td>
+        <td class="col-actions">
           @if (!complaint.resolvedAt) {
             <p-button size="small" label="Lösen" (click)="openResolveDialog(complaint)"></p-button>
           } @else if (complaint.decisionNote) {
@@ -82,14 +82,14 @@
 
   @if (resolveDecision() === 'ersatzproduktion') {
     <div class="form-field">
-      <label>Ersatzproduktion (Batch-Item) *</label>
+      <label>Ersatzproduktion (Position im Druckauftrag) *</label>
       <p-select
         [options]="batchItems()"
         [ngModel]="resolveReplacementBatchItemId()"
         (ngModelChange)="resolveReplacementBatchItemId.set($event)"
         optionLabel="description"
         optionValue="id"
-        placeholder="Batch-Item wählen"
+        placeholder="Position wählen"
         class="w-full"
       />
     </div>
@@ -101,7 +101,7 @@
   </div>
   <div class="form-field">
     <label>Kosten (optional)</label>
-    <p-inputnumber [ngModel]="resolveCost()" (ngModelChange)="resolveCost.set($event)" mode="currency" currency="EUR" />
+    <p-inputnumber [ngModel]="resolveCost()" (ngModelChange)="resolveCost.set($event)" mode="currency" currency="EUR" locale="de-DE" />
   </div>
 
   @if (actionError()) {

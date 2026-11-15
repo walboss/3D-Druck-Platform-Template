@@ -17,3 +17,5 @@ fn_fail_production_order
 
 **Best Practice:** fn_fail_production_order mit Pflichtgrund-Feld, analog zur
 Stornierung — Nachvollziehbarkeit für spätere Kalkulationsgenauigkeit
+
+**Anzeige-Begriff** (Entscheidung 2026-11-14 — Review F12): `batch_items` (dem Auftrag zugeordnete Bestellpositionen) heißen im Admin „Positionen im Druckauftrag" (Produktionsdetail, Reklamation/Ersatzproduktion). Nur Anzeige, Tabellen-/Feldnamen bleiben.

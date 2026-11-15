@@ -12,14 +12,17 @@
     <p-button [label]="continueBrowsingLabel()" icon="pi pi-th-large" (click)="continueBrowsing()"></p-button>
   </div>
 } @else {
+  @if (actionError()) {
+    <p-message severity="error" styleClass="mb-2">{{ actionError() }}</p-message>
+  }
   <div class="cart-layout">
     <div class="cart-main-col">
       <div class="cart-list">
-        @for (row of rows(); track row.cartItemId) {
+        @for (row of rows(); track row.cartItemId + ':' + row.rev) {
           <div class="cart-row app-card">
             <a class="cart-image" [routerLink]="['/produkt', row.productId]" [attr.aria-label]="row.productName + ' ansehen'">
               @if (row.images[0]?.url) {
-                <img [src]="row.images[0].url" [alt]="row.productName" />
+                <img [appSizedSrc]="row.images[0].url" [appSizedWidth]="200" [alt]="row.productName" />
               } @else {
                 <i class="pi pi-image"></i>
               }
@@ -51,9 +54,10 @@
             ></p-button>
 
             <div class="cart-controls">
-              <p-inputnumber
+              <p-inputnumber locale="de-DE"
                 [ngModel]="row.qty"
                 (ngModelChange)="updateQty(row, $event)"
+                (onBlur)="onQtyBlur(row)"
                 [min]="row.minQty"
                 [max]="row.maxQty"
                 [step]="row.stepQty"
@@ -66,8 +70,8 @@
               />
 
               @if (showPrices()) {
-                <div class="cart-line-total">
-                  {{ (row.finalPrice ?? 0) * row.qty | currency: 'EUR' }}
+                <div class="cart-line-total" [class.muted]="row.finalPrice === null">
+                  {{ row.finalPrice !== null ? (row.finalPrice * row.qty | currency: 'EUR') : 'Preis folgt' }}
                 </div>
               }
             </div>
@@ -90,9 +94,12 @@
       </div>
       @if (showPrices()) {
         <div class="summary-line summary-total">
-          <span>Gesamtsumme</span>
-          <span class="total">{{ total() | currency: 'EUR' }}</span>
+          <span>{{ summary().unpricedCount > 0 ? 'Zwischensumme' : 'Gesamtsumme' }}</span>
+          <span class="total">{{ summary().total | currency: 'EUR' }}</span>
         </div>
+        @if (summary().unpricedCount > 0) {
+          <p class="unpriced-hint">{{ unpricedHint(summary().unpricedCount) }}</p>
+        }
       }
       <div class="summary-actions">
         <p-button [label]="checkoutLabel()" icon="pi pi-arrow-right" iconPos="right" styleClass="w-full" (click)="goToCheckout()"></p-button>

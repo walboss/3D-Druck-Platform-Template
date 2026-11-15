@@ -7,16 +7,16 @@
 } @else if (order()) {
   <div class="header-row">
     <h1>{{ order()!.orderNumber }}</h1>
-    <p-tag [value]="order()!.status" [severity]="orderStatusSeverity(order()!.status)" />
+    <p-tag [value]="order()!.status | statusLabel" [severity]="orderStatusSeverity(order()!.status)" />
   </div>
 
   <div class="customer-box">
     <strong>{{ order()!.customer.first_name }} {{ order()!.customer.last_name }}</strong>
     @if (order()!.customer.phone) {
-      <span> · {{ order()!.customer.phone }}</span>
+      <a class="contact-link" [href]="'tel:' + order()!.customer.phone"><i class="pi pi-phone"></i> {{ order()!.customer.phone }}</a>
     }
     @if (order()!.customer.email) {
-      <span> · {{ order()!.customer.email }}</span>
+      <a class="contact-link" [href]="'mailto:' + order()!.customer.email"><i class="pi pi-envelope"></i> {{ order()!.customer.email }}</a>
     }
   </div>
 
@@ -36,18 +36,21 @@
 
   <div class="order-actions">
     @if (order()!.status === 'New') {
-      <p-button label="Bestätigen" icon="pi pi-check" [loading]="actionRunning()" (click)="confirmOrder()"></p-button>
+      <p-button label="Bestätigen" icon="pi pi-check" [loading]="runningAction() === 'confirm'" [disabled]="actionRunning()" (click)="confirmOrder()"></p-button>
     }
     @if (order()!.status === 'Finished') {
-      <p-button label="Bereit zur Abholung" icon="pi pi-box" [loading]="actionRunning()" (click)="readyForPickup()"></p-button>
+      <p-button label="Bereit zur Abholung" icon="pi pi-box" [loading]="runningAction() === 'ready'" [disabled]="actionRunning()" (click)="readyForPickup()"></p-button>
     }
     @if (order()!.status === 'ReadyForPickup') {
-      <p-button label="Übergabe" icon="pi pi-handshake" [loading]="actionRunning()" (click)="openHandoverDialog()"></p-button>
-    }
-    @if (order()!.status !== 'HandedOver' && order()!.status !== 'Cancelled') {
-      <p-button severity="danger" label="Bestellung stornieren" icon="pi pi-times" (click)="openCancelOrderDialog()"></p-button>
+      <p-button label="Übergabe" icon="pi pi-handshake" [disabled]="actionRunning()" (click)="openHandoverDialog()"></p-button>
     }
   </div>
+  <!-- Stornieren abgesetzt von den Fortschritts-Aktionen (Spec 19, Review F10) -->
+  @if (order()!.status !== 'HandedOver' && order()!.status !== 'Cancelled') {
+    <div class="order-danger-zone">
+      <p-button severity="danger" [text]="true" label="Bestellung stornieren …" icon="pi pi-times" [disabled]="actionRunning()" (click)="openCancelOrderDialog()"></p-button>
+    </div>
+  }
 
   <h2 class="mt-4">Positionen</h2>
   <div class="items-list">
@@ -55,7 +58,7 @@
       <div class="item-row">
         <div class="item-main">
           <span>{{ item.description }} × {{ item.qty }}</span>
-          <p-tag [value]="item.status" [severity]="itemStatusSeverity(item.status)" />
+          <p-tag [value]="item.status | statusLabel" [severity]="itemStatusSeverity(item.status)" />
           <span class="item-price">{{ item.finalPrice !== null ? (item.finalPrice | currency: 'EUR') : '–' }}</span>
         </div>
         @if (item.colorChanges.length > 0) {
@@ -112,7 +115,7 @@
       placeholder="Produktionsauftrag wählen"
       class="w-full"
     >
-      <ng-template let-po #item>{{ po.status }} — geplant {{ po.planned_start | date: 'dd.MM.yyyy HH:mm' }}</ng-template>
+      <ng-template let-po #item>{{ po.status | statusLabel }} — geplant {{ po.planned_start | date: 'dd.MM.yyyy HH:mm' }}</ng-template>
     </p-select>
     @if (assignableProductionOrders().length === 0) {
       <p-message severity="info" styleClass="mt-2">
@@ -152,7 +155,7 @@
     <p-button
       [label]="assignMode() === 'bestehend' ? 'Zuordnen' : 'Anlegen und zuordnen'"
       [disabled]="!canConfirmAssign()"
-      [loading]="actionRunning()"
+      [loading]="runningAction() === 'assign'"
       (click)="confirmAssign()"
     ></p-button>
   </div>
@@ -173,14 +176,14 @@
       >
         <ng-template let-spool #item>{{ spool.label }} — {{ spool.availableG }} g verfügbar</ng-template>
       </p-select>
-      <p-inputnumber [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" />
+      <p-inputnumber locale="de-DE" [(ngModel)]="row.amountG" suffix=" g" [min]="0" class="amount-input" />
       <p-button severity="danger" [text]="true" icon="pi pi-trash" ariaLabel="Zeile entfernen" (click)="removeReproductionRow($index)"></p-button>
     </div>
   }
   <p-button severity="secondary" label="Spule hinzufügen" icon="pi pi-plus" (click)="addReproductionRow()"></p-button>
 
   <div class="dialog-actions">
-    <p-button label="Nachproduktion anlegen" [loading]="actionRunning()" (click)="confirmReproduction()"></p-button>
+    <p-button label="Nachproduktion anlegen" [loading]="runningAction() === 'reproduction'" (click)="confirmReproduction()"></p-button>
   </div>
 </p-dialog>
 
@@ -189,7 +192,7 @@
   <label>Notiz (optional)</label>
   <textarea pTextarea rows="3" [(ngModel)]="handoverNote" class="w-full"></textarea>
   <div class="dialog-actions">
-    <p-button label="Übergabe bestätigen" [loading]="actionRunning()" (click)="confirmHandover()"></p-button>
+    <p-button label="Übergabe bestätigen" [loading]="runningAction() === 'handover'" (click)="confirmHandover()"></p-button>
   </div>
 </p-dialog>
 
@@ -198,7 +201,7 @@
   <label>Stornogrund *</label>
   <textarea pTextarea rows="3" [(ngModel)]="cancelReason" class="w-full"></textarea>
   <div class="dialog-actions">
-    <p-button severity="danger" label="Stornieren" [disabled]="!cancelReason().trim()" [loading]="actionRunning()" (click)="confirmCancel()"></p-button>
+    <p-button severity="danger" label="Stornieren" [disabled]="!cancelReason().trim()" [loading]="runningAction() === 'cancel'" (click)="confirmCancel()"></p-button>
   </div>
 </p-dialog>
 
@@ -262,7 +265,7 @@
       label="Farbe ändern"
       icon="pi pi-check"
       [disabled]="!colorSelectionComplete() || !colorReason().trim()"
-      [loading]="actionRunning()"
+      [loading]="runningAction() === 'color'"
       (click)="confirmColorChange()"
     ></p-button>
   </div>

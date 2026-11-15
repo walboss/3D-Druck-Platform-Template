@@ -17,6 +17,7 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { AdminOffersService, CustomRequestDetail as RequestDetailModel, OfferItemInput } from '../../../core/services/admin-offers.service';
 import { CalcReason, CustomRequestStatus } from '../../../core/models/db-types';
 import { CostComponents } from '../../../core/services/admin-catalog.service';
+import { StatusLabelPipe } from '../../../core/utils/status-labels';
 
 const EMPTY_COSTS: CostComponents = {
   filament_cost: 0,
@@ -32,7 +33,7 @@ const EMPTY_COSTS: CostComponents = {
 @Component({
   selector: 'app-admin-custom-request-detail',
   standalone: true,
-  imports: [
+  imports: [StatusLabelPipe, 
     DatePipe,
     FormsModule,
     ButtonModule,

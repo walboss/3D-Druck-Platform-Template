@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { TableModule } from 'primeng/table';
@@ -12,6 +12,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { TooltipModule } from 'primeng/tooltip';
 
 import { AdminPrintersService, PrinterRow } from '../../../core/services/admin-printers.service';
+import { MessageService } from 'primeng/api';
 
 // Druckerverwaltung (Migration 00186, Entscheidung 2026-09-24):
 // mehrere Drucker, genau einer ist Standard (Stern) — auf ihm landen
@@ -36,6 +37,9 @@ import { AdminPrintersService, PrinterRow } from '../../../core/services/admin-p
   styleUrl: './admin-printers.scss',
 })
 export class AdminPrinters implements OnInit {
+  // Erfolgsmeldungen (Review C22), Toast sitzt im Admin-Layout
+  private readonly messages = inject(MessageService);
+
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly printers = signal<PrinterRow[]>([]);
@@ -75,6 +79,7 @@ export class AdminPrinters implements OnInit {
     this.error.set(null);
     try {
       await this.printersService.setDefaultPrinter(printer.id);
+      this.messages.add({ severity: 'success', summary: 'Standard-Drucker gesetzt' });
       await this.load();
     } catch {
       this.error.set('Standard-Drucker konnte nicht gesetzt werden.');
@@ -155,6 +160,7 @@ export class AdminPrinters implements OnInit {
         await this.printersService.createPrinter(input);
       }
       this.dialogVisible.set(false);
+      this.messages.add({ severity: 'success', summary: 'Drucker gespeichert' });
       await this.load();
     } catch {
       this.dialogError.set(this.editingId() ? 'Speichern fehlgeschlagen.' : 'Anlegen fehlgeschlagen.');

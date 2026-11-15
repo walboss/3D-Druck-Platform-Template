@@ -8,6 +8,27 @@ export interface SpoolAvailability {
   restG: number;
   availableG: number;
   isCritical: boolean;
+  purchaseDate?: string | null;
+}
+
+/**
+ * Gleiche Spulen (gleiches Filament) unterscheidbar machen (Review F6):
+ * nur bei mehrfach vorkommendem Text „Spule 1/2/…“ plus Kaufdatum anhängen,
+ * sortiert nach Kaufdatum (älteste = Spule 1). Einzelne Spulen bleiben unverändert.
+ */
+export function disambiguateSpoolLabels<T extends { label: string; purchaseDate?: string | null }>(spools: T[]): T[] {
+  const groups = new Map<string, T[]>();
+  for (const s of spools) groups.set(s.label, [...(groups.get(s.label) ?? []), s]);
+  const suffix = new Map<T, string>();
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const sorted = [...group].sort((a, b) => (a.purchaseDate ?? '').localeCompare(b.purchaseDate ?? ''));
+    sorted.forEach((s, i) => {
+      const date = s.purchaseDate ? ', gekauft ' + s.purchaseDate.slice(0, 10).split('-').reverse().join('.') : '';
+      suffix.set(s, ` – Spule ${i + 1}${date}`);
+    });
+  }
+  return spools.map((s) => (suffix.has(s) ? { ...s, label: s.label + suffix.get(s) } : s));
 }
 
 export interface LowStockSpool {
@@ -74,7 +95,7 @@ export class FilamentService {
       await Promise.all([
         this.supabase.client
           .from('filament_spools')
-          .select('id, filament_product_id, initial_weight_g')
+          .select('id, filament_product_id, initial_weight_g, purchase_date')
           .eq('active', true),
         this.supabase.client.from('filament_movements').select('spool_id, amount_g'),
         this.supabase.client.from('filament_reservations').select('spool_id, amount_g').eq('status', 'aktiv'),
@@ -96,7 +117,7 @@ export class FilamentService {
     }
     const productById = new Map((products ?? []).map((p) => [p['id'], p]));
 
-    return (spools ?? []).map((spool) => {
+    const rows = (spools ?? []).map((spool) => {
       const rest = spool['initial_weight_g'] + (movementSumBySpool.get(spool['id']) ?? 0);
       const available = rest - (reservedSumBySpool.get(spool['id']) ?? 0);
       const product = productById.get(spool['filament_product_id']);
@@ -111,8 +132,10 @@ export class FilamentService {
         restG: Math.round(rest),
         availableG: Math.round(available),
         isCritical: available < CRITICAL_STOCK_THRESHOLD_G,
+        purchaseDate: (spool['purchase_date'] as string | null) ?? null,
       };
     });
+    return disambiguateSpoolLabels(rows);
   }
 
   async getLowStockSpools(): Promise<LowStockSpool[]> {

@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
@@ -42,6 +42,7 @@ export class SuggestModelForm {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly result = signal<SuggestionStatus | null>(null);
+  private readonly turnstileWidget = viewChild(TurnstileWidget);
 
   readonly extractedLink = computed(() => extractMakerworldLink(this.makerworldUrl()));
   readonly linkValid = computed(() => this.extractedLink() !== null);
@@ -75,6 +76,9 @@ export class SuggestModelForm {
         (httpError?.error && (httpError.error.message || httpError.error.error)) ||
         'Vorschlag konnte nicht gesendet werden. Bitte versuche es erneut.';
       this.error.set(message);
+      // Turnstile-Token ist verbraucht -- für den nächsten Versuch neues anfordern.
+      this.turnstileToken.set(null);
+      this.turnstileWidget()?.reset();
     } finally {
       this.submitting.set(false);
     }

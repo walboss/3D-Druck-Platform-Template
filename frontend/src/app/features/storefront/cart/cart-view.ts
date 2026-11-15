@@ -8,11 +8,10 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { MessageModule } from 'primeng/message';
 import { SkeletonModule } from 'primeng/skeleton';
 
-import { CartService, RawCartItem } from '../../../core/services/cart.service';
-import { SupabaseClientService } from '../../../core/services/supabase-client.service';
+import { CartService } from '../../../core/services/cart.service';
+import { CartDetailsService } from '../../../core/services/cart-details.service';
 import { PricingService } from '../../../core/services/pricing.service';
-import { StockOptionsService } from '../../../core/services/stock-options.service';
-import { parseConfigurationDraft, formatConfigurationLabel } from '../../../core/utils/cart-configuration.util';
+import { parseQtyInput } from '../../../core/utils/qty-input.util';
 
 interface CartRow {
   cartItemId: string;
@@ -27,16 +26,21 @@ interface CartRow {
   maxQty: number;
   stepQty: number;
   finalPrice: number | null;
+  /** Zähler für das Neuaufbauen der Zeile, damit das Mengenfeld nach verworfener Eingabe die echte Menge zeigt. */
+  rev: number;
 }
 
+import { SizedImage } from '../../../shared/sized-image/sized-image';
+import { priceSummary, unpricedHint } from '../../../core/utils/price-summary.util';
 @Component({
   selector: 'app-cart-view',
   standalone: true,
-  imports: [CurrencyPipe, FormsModule, RouterLink, ButtonModule, InputNumberModule, MessageModule, SkeletonModule],
+  imports: [SizedImage, CurrencyPipe, FormsModule, RouterLink, ButtonModule, InputNumberModule, MessageModule, SkeletonModule],
   templateUrl: './cart-view.html',
   styleUrl: './cart-view.scss',
 })
 export class CartView implements OnInit {
+  private readonly cartDetails = inject(CartDetailsService);
   private readonly pricing = inject(PricingService);
   readonly showPrices = this.pricing.showPrices;
   readonly qtyInvalidLabel = this.pricing.qtyInvalidLabel;
@@ -45,13 +49,13 @@ export class CartView implements OnInit {
   readonly continueBrowsingLabel = this.pricing.continueBrowsingLabel;
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  /** Fehler bei Menge ändern/Entfernen -- Liste bleibt sichtbar. */
+  readonly actionError = signal<string | null>(null);
   readonly rows = signal<CartRow[]>([]);
+  private readonly invalidQtyInput = new Set<string>();
 
-  readonly total = computed(() =>
-    this.rows().reduce((sum, r) => sum + (r.finalPrice ?? 0) * r.qty, 0),
-  );
-
-  readonly hasUnpricedItems = computed(() => this.rows().some((r) => r.finalPrice === null));
+  readonly summary = computed(() => priceSummary(this.rows()));
+  readonly unpricedHint = unpricedHint;
 
   isQtyInvalid(row: CartRow): boolean {
     return (
@@ -61,9 +65,7 @@ export class CartView implements OnInit {
 
   constructor(
     private readonly cartService: CartService,
-    private readonly supabase: SupabaseClientService,
     private readonly router: Router,
-    private readonly stockOptions: StockOptionsService,
   ) {}
 
   ngOnInit(): void {
@@ -74,64 +76,8 @@ export class CartView implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const [{ items }] = await Promise.all([this.cartService.getCart(), this.stockOptions.load()]);
-      const variantIds = Array.from(new Set(items.map((i) => i.variant.id)));
-
-      let priceByVariant = new Map<string, number | null>();
-      if (variantIds.length > 0) {
-        const { data, error } = await this.supabase.client
-          .from('v_catalog')
-          .select('variant_id, final_price')
-          .in('variant_id', variantIds);
-        if (error) throw error;
-        priceByVariant = new Map((data ?? []).map((r) => [r['variant_id'], r['final_price']]));
-      }
-
-      const colorNameById = new Map(this.stockOptions.colors().map((c) => [c.id, c.name]));
-      const finishNameById = new Map(this.stockOptions.finishes().map((f) => [f.id, f.name]));
-
-      const draftsByProduct = items.map((i) => ({
-        productId: i.product.id,
-        entries: parseConfigurationDraft(i.configuration_draft),
-      }));
-      const productIdsWithParts = Array.from(
-        new Set(
-          draftsByProduct
-            .filter((d) => d.entries.some((e) => e.product_part_id !== null))
-            .map((d) => d.productId),
-        ),
-      );
-      let partNameById = new Map<string, string>();
-      if (productIdsWithParts.length > 0) {
-        const { data, error } = await this.supabase.client
-          .from('product_parts')
-          .select('id, name')
-          .in('product_id', productIdsWithParts);
-        if (error) throw error;
-        partNameById = new Map((data ?? []).map((p) => [p['id'], p['name']]));
-      }
-
-      this.rows.set(
-        items.map((i: RawCartItem) => ({
-          cartItemId: i.cart_item_id,
-          productId: i.product.id,
-          variantId: i.variant.id,
-          productName: i.product.name,
-          sizeLabel: i.variant.size_label,
-          configLabel: formatConfigurationLabel(
-            parseConfigurationDraft(i.configuration_draft),
-            colorNameById,
-            finishNameById,
-            partNameById,
-          ),
-          images: (i.product.images as { url: string }[]) ?? [],
-          qty: i.qty,
-          minQty: i.variant.min_qty,
-          maxQty: i.variant.max_qty,
-          stepQty: i.variant.step_qty,
-          finalPrice: priceByVariant.get(i.variant.id) ?? null,
-        })),
-      );
+      const { rows } = await this.cartDetails.load();
+      this.rows.set(rows.map((r) => ({ ...r, rev: 0 })));
     } catch {
       this.error.set(this.pricing.listLoadErrorLabel());
     } finally {
@@ -139,23 +85,44 @@ export class CartView implements OnInit {
     }
   }
 
-  async updateQty(row: CartRow, qty: number): Promise<void> {
+  async updateQty(row: CartRow, value: unknown): Promise<void> {
+    const qty = parseQtyInput(value);
+    if (qty === null) {
+      // Leeres/ungültiges Feld: nichts senden. Beim Verlassen des Felds wird die
+      // gespeicherte Menge wieder angezeigt (onQtyBlur) -- nicht sofort, sonst
+      // verliert das Feld beim Löschen-und-neu-Tippen den Fokus.
+      this.invalidQtyInput.add(row.cartItemId);
+      return;
+    }
+    this.invalidQtyInput.delete(row.cartItemId);
+    if (qty === row.qty) return;
+    this.actionError.set(null);
     try {
       await this.cartService.updateItemQty(row.cartItemId, qty);
-      row.qty = qty;
-      this.rows.set([...this.rows()]);
+      this.rows.set(this.rows().map((r) => (r.cartItemId === row.cartItemId ? { ...r, qty } : r)));
     } catch {
-      this.error.set('Menge konnte nicht aktualisiert werden.');
+      this.actionError.set('Menge konnte nicht aktualisiert werden. Bitte erneut versuchen.');
+      this.patchRow(row.cartItemId, {});
     }
   }
 
+  onQtyBlur(row: CartRow): void {
+    if (this.invalidQtyInput.delete(row.cartItemId)) this.patchRow(row.cartItemId, {});
+  }
+
   async removeItem(row: CartRow): Promise<void> {
+    this.actionError.set(null);
     try {
       await this.cartService.removeItem(row.cartItemId);
       this.rows.set(this.rows().filter((r) => r.cartItemId !== row.cartItemId));
     } catch {
-      this.error.set('Position konnte nicht entfernt werden.');
+      this.actionError.set('Position konnte nicht entfernt werden. Bitte erneut versuchen.');
     }
+  }
+
+  /** Zeile ersetzen und neu aufbauen (rev+1), damit das Mengenfeld den gespeicherten Wert zeigt. */
+  private patchRow(cartItemId: string, patch: Partial<CartRow>): void {
+    this.rows.set(this.rows().map((r) => (r.cartItemId === cartItemId ? { ...r, ...patch, rev: r.rev + 1 } : r)));
   }
 
   goToCheckout(): void {

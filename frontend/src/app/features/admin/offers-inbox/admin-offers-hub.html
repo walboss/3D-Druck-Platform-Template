@@ -13,7 +13,7 @@
     </p-tablist>
     <p-tabpanels>
       <p-tabpanel value="0">
-        <p-table [value]="requests()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+        <p-table [value]="requests()" [rows]="20" [paginator]="true" class="stack-on-mobile">
           <ng-template #header>
             <tr>
               <th>Kunde</th>
@@ -25,11 +25,11 @@
           </ng-template>
           <ng-template #body let-request>
             <tr class="clickable-row" (click)="openRequest(request)">
-              <td>{{ request.customerName }}</td>
-              <td>{{ request.desiredSize }}</td>
-              <td>{{ request.qty }}</td>
-              <td><p-tag [value]="request.status" [severity]="requestStatusSeverity(request.status)" /></td>
-              <td>{{ request.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
+              <td data-label="Kunde">{{ request.customerName }}</td>
+              <td data-label="Größe">{{ request.desiredSize }}</td>
+              <td data-label="Menge">{{ request.qty }}</td>
+              <td data-label="Status"><p-tag [value]="request.status | statusLabel" [severity]="requestStatusSeverity(request.status)" /></td>
+              <td data-label="Erstellt">{{ request.createdAt | date: 'dd.MM.yyyy HH:mm' }}</td>
             </tr>
           </ng-template>
           <ng-template #emptymessage>
@@ -39,7 +39,7 @@
       </p-tabpanel>
 
       <p-tabpanel value="1">
-        <p-table [value]="offers()" [rows]="20" [paginator]="true" responsiveLayout="scroll">
+        <p-table [value]="offers()" [rows]="20" [paginator]="true" class="stack-on-mobile">
           <ng-template #header>
             <tr>
               <th>Kunde</th>
@@ -51,13 +51,13 @@
           </ng-template>
           <ng-template #body let-offer>
             <tr>
-              <td>{{ offer.customerName }}</td>
-              <td><p-tag [value]="offer.status" [severity]="offerStatusSeverity(offer.status)" /></td>
-              <td>{{ offer.validUntil | date: 'dd.MM.yyyy' }}</td>
-              <td>
+              <td data-label="Kunde">{{ offer.customerName }}</td>
+              <td data-label="Status"><p-tag [value]="offer.status | statusLabel" [severity]="offerStatusSeverity(offer.status)" /></td>
+              <td data-label="Gültig bis">{{ offer.validUntil | date: 'dd.MM.yyyy' }}</td>
+              <td data-label="Link">
                 <p-button size="small" severity="secondary" [text]="true" icon="pi pi-copy" label="Link kopieren" (click)="copyOfferLink(offer.secureToken)"></p-button>
               </td>
-              <td>
+              <td class="col-actions">
                 @if (offer.status === 'offen') {
                   <p-button size="small" severity="danger" [text]="true" label="Ablehnen" (click)="openRejectDialog(offer.id)"></p-button>
                   <p-button size="small" severity="danger" [text]="true" label="Widerrufen" (click)="openRevokeDialog(offer.id)"></p-button>

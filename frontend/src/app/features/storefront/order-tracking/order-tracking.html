@@ -12,22 +12,34 @@
         }
         <p-tag [value]="orderStatusLabel(order()!.status)" [severity]="orderStatusSeverity(order()!.status)" />
       </div>
+      @if (order()!.created_at) {
+        <p class="order-date">Eingegangen am {{ order()!.created_at | date: 'dd.MM.yyyy' }}</p>
+      }
     </div>
 
+    <!-- Abholhinweis (Spec 18 §8, Entscheidung 2026-11-14); neutral formuliert wegen Privatmodus -->
+    @if (order()!.status === 'ReadyForPickup') {
+      <div class="pickup-hint" role="status">
+        <i class="pi pi-box"></i>
+        <strong>Fertig – alles liegt zur Abholung bereit.</strong>
+      </div>
+    }
+
     <div class="items-list">
-      @for (item of order()!.items; track item.description) {
+      @for (item of order()!.items; track $index) {
         <div class="tracking-item app-card">
           <div class="item-header">
             <span class="item-name">
               {{ item.description }}
               <span class="item-qty">× {{ item.qty }}</span>
             </span>
-            <p-tag [value]="stepLabel(item.status)" [severity]="itemStatusSeverity(item.status)" />
+            <!-- Status nur einmal: Stepper; Tag nur bei storniert (Spec 18 §8) -->
+            @if (item.status === 'Storniert') {
+              <p-tag [value]="stepLabel(item.status)" [severity]="itemStatusSeverity(item.status)" />
+            }
           </div>
 
-          @if (item.status === 'Storniert') {
-            <p-message severity="error" styleClass="mt-2">Diese Position wurde storniert.</p-message>
-          } @else {
+          @if (item.status !== 'Storniert') {
             <div class="step-row">
               @for (step of stepsFor(item.status); track step; let i = $index) {
                 <div

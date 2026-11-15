@@ -172,6 +172,10 @@
   .form-field {
     margin-bottom: 0.5rem;
   }
+
+  .form-field-wide {
+    grid-column: 1 / -1;
+  }
 }
 
 .row-original {
@@ -201,4 +205,23 @@
 
 .mb-2 {
   margin-bottom: 0.5rem;
+}
+
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+
+  label {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+}
+
+:host ::ng-deep .profile-select {
+  flex: 1 1 18rem;
+  min-width: 0;
+  max-width: 100%;
 }

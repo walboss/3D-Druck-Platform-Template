@@ -34,7 +34,22 @@
               — Originaltitel „{{ sourceMakerworldTitle() }}"
             }
           </p-message>
+          @if (!isNew()) {
+            <div class="reimport-row">
+              <p-button
+                label="Neu einlesen"
+                icon="pi pi-refresh"
+                severity="secondary"
+                size="small"
+                (click)="reimportFromMakerworld()"
+              ></p-button>
+              <small>Liest das Modell neu aus MakerWorld (z. B. als Farbteile statt je Platte ein Produkt). Die bisherigen Produkte des Modells werden nach Rückfrage ersetzt.</small>
+            </div>
+          }
         }
+        <!-- Desktop: Stammdaten links, Bilder rechts (Review F11) -->
+        <div class="editor-columns">
+          <div class="editor-main">
         <div class="form-field">
           <label>MakerWorld-Link (optional)</label>
           <div class="makerworld-row">
@@ -51,6 +66,8 @@
             <app-makerworld-plate-mapping
               [plates]="productMakerworldImport()?.plates ?? []"
               [allowPerPlate]="false"
+              [viewerUrl]="viewerUrl()"
+              [analysisHint]="analysisHint()"
               [state]="mapping"
               (stateChange)="plateMapping.set($event)"
             />
@@ -105,11 +122,21 @@
             <p-button severity="secondary" label="Hinzufügen" (click)="addTag()"></p-button>
           </div>
         </div>
+          </div>
 
+          <div class="editor-side">
         <div class="form-field">
           <label>Bilder</label>
           @for (image of images(); track $index) {
             <div class="image-row">
+              <!-- Vorschau, damit man sieht welches Bild es ist und ob der Link lädt (Review F2) -->
+              <span class="image-thumb">
+                @if (image.url.trim()) {
+                  <img [appSizedSrc]="image.url.trim()" [appSizedWidth]="200" alt="Vorschau" loading="lazy" />
+                } @else {
+                  <i class="pi pi-image"></i>
+                }
+              </span>
               <input
                 type="text"
                 pInputText
@@ -152,6 +179,8 @@
             </div>
           </div>
         }
+          </div>
+        </div>
 
         <p-button label="Speichern" icon="pi pi-save" [loading]="saving()" (click)="saveProduct()" class="mt-3"></p-button>
       </p-tabpanel>
@@ -187,7 +216,25 @@
           <p-tabpanel value="2">
             <div class="part-list">
               @for (part of parts(); track part.id) {
-                <div class="option-row">{{ part.sortOrder }}. {{ part.name }}</div>
+                <div class="option-row part-row">
+                  <span class="part-no">{{ part.sortOrder }}.</span>
+                  <input
+                    type="text"
+                    pInputText
+                    class="part-name-input"
+                    [attr.aria-label]="'Name von Teil ' + part.sortOrder"
+                    [ngModel]="partDraft(part)"
+                    (ngModelChange)="setPartDraft(part, $event)"
+                    (keydown.enter)="renamePart(part)"
+                  />
+                  <p-button
+                    size="small"
+                    severity="secondary"
+                    label="Umbenennen"
+                    [disabled]="!partDraft(part).trim() || partDraft(part).trim() === part.name"
+                    (click)="renamePart(part)"
+                  ></p-button>
+                </div>
               }
             </div>
             <div class="add-option-row mt-2">
@@ -220,34 +267,58 @@
       <p-message severity="info" styleClass="mt-2">{{ makerworldHint() }}</p-message>
     }
   </div>
+  @if (showVariantParts()) {
+    <div class="variant-parts">
+      <label>Teile dieser Variante</label>
+      <small>Nur angehakte Teile gehören zur Variante; der Kunde wählt nur für diese eine Farbe. Gewicht und Druckzeit werden summiert. Gespeicherte Teile lassen sich nicht abwählen – dafür eine neue Variante anlegen und diese deaktivieren.</small>
+      @for (row of variantPartRows(); track row.partId) {
+        <div class="variant-part-row">
+          <p-checkbox [binary]="true" [ngModel]="row.used" (ngModelChange)="setVariantPart(row.partId, { used: $event })" [disabled]="row.locked" [inputId]="'vp-' + row.partId" />
+          <label [for]="'vp-' + row.partId" class="variant-part-name">{{ row.name }}</label>
+          <p-inputnumber locale="de-DE" [ngModel]="row.weightG" (ngModelChange)="setVariantPart(row.partId, { weightG: $event })" [disabled]="!row.used" suffix=" g" [maxFractionDigits]="1" inputStyleClass="vp-input" />
+          <p-inputnumber locale="de-DE" [ngModel]="row.printTimeMin" (ngModelChange)="setVariantPart(row.partId, { printTimeMin: $event })" [disabled]="!row.used" suffix=" min" inputStyleClass="vp-input" />
+        </div>
+      }
+    </div>
+  }
+  @if (showVariantParts()) {
+    <p class="variant-sums">
+      Summe aus den Teilen: <strong>{{ partSums().weightG }} g</strong> · <strong>{{ partSums().printTimeMin }} min</strong>
+      (Gewicht, Druckzeit und Materialbedarf werden beim Speichern übernommen)
+    </p>
+  }
   <div class="grid-2">
+    @if (!showVariantParts()) {
     <div class="form-field">
       <label>Gewicht (g)</label>
-      <p-inputnumber [ngModel]="variantForm().weightG" (ngModelChange)="variantForm.set({ ...variantForm(), weightG: $event })" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().weightG" (ngModelChange)="variantForm.set({ ...variantForm(), weightG: $event })" />
     </div>
     <div class="form-field">
       <label>Druckzeit (min)</label>
-      <p-inputnumber [ngModel]="variantForm().printTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), printTimeMin: $event })" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().printTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), printTimeMin: $event })" />
     </div>
+    }
     <div class="form-field">
       <label>Arbeitszeit (min)</label>
-      <p-inputnumber [ngModel]="variantForm().workTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), workTimeMin: $event })" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().workTimeMin" (ngModelChange)="variantForm.set({ ...variantForm(), workTimeMin: $event })" />
     </div>
+    @if (!showVariantParts()) {
     <div class="form-field">
       <label>Materialbedarf (g)</label>
-      <p-inputnumber [ngModel]="variantForm().materialNeedG" (ngModelChange)="variantForm.set({ ...variantForm(), materialNeedG: $event })" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().materialNeedG" (ngModelChange)="variantForm.set({ ...variantForm(), materialNeedG: $event })" />
     </div>
+    }
     <div class="form-field">
       <label>Min. Menge</label>
-      <p-inputnumber [ngModel]="variantForm().minQty" (ngModelChange)="variantForm.set({ ...variantForm(), minQty: $event })" [min]="1" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().minQty" (ngModelChange)="variantForm.set({ ...variantForm(), minQty: $event })" [min]="1" />
     </div>
     <div class="form-field">
       <label>Max. Menge</label>
-      <p-inputnumber [ngModel]="variantForm().maxQty" (ngModelChange)="variantForm.set({ ...variantForm(), maxQty: $event })" [min]="1" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().maxQty" (ngModelChange)="variantForm.set({ ...variantForm(), maxQty: $event })" [min]="1" />
     </div>
     <div class="form-field">
       <label>Schrittweite</label>
-      <p-inputnumber [ngModel]="variantForm().stepQty" (ngModelChange)="variantForm.set({ ...variantForm(), stepQty: $event })" [min]="1" />
+      <p-inputnumber locale="de-DE" [ngModel]="variantForm().stepQty" (ngModelChange)="variantForm.set({ ...variantForm(), stepQty: $event })" [min]="1" />
     </div>
     <div class="form-field toggle-field">
       <label>Aktiv</label>
@@ -274,41 +345,41 @@
   <div class="grid-2">
     <div class="form-field">
       <label>Filamentkosten</label>
-      <p-inputnumber [ngModel]="calcCosts().filament_cost" (ngModelChange)="updateCalcCost('filament_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().filament_cost" (ngModelChange)="updateCalcCost('filament_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Energiekosten</label>
-      <p-inputnumber [ngModel]="calcCosts().energy_cost" (ngModelChange)="updateCalcCost('energy_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().energy_cost" (ngModelChange)="updateCalcCost('energy_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Maschinenkosten</label>
-      <p-inputnumber [ngModel]="calcCosts().machine_cost" (ngModelChange)="updateCalcCost('machine_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().machine_cost" (ngModelChange)="updateCalcCost('machine_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Arbeitskosten</label>
-      <p-inputnumber [ngModel]="calcCosts().labor_cost" (ngModelChange)="updateCalcCost('labor_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().labor_cost" (ngModelChange)="updateCalcCost('labor_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Verpackungskosten</label>
-      <p-inputnumber [ngModel]="calcCosts().packaging_cost" (ngModelChange)="updateCalcCost('packaging_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().packaging_cost" (ngModelChange)="updateCalcCost('packaging_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Lizenzkosten</label>
-      <p-inputnumber [ngModel]="calcCosts().license_cost" (ngModelChange)="updateCalcCost('license_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().license_cost" (ngModelChange)="updateCalcCost('license_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Ausschusszuschlag</label>
-      <p-inputnumber [ngModel]="calcCosts().scrap_allowance" (ngModelChange)="updateCalcCost('scrap_allowance', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().scrap_allowance" (ngModelChange)="updateCalcCost('scrap_allowance', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
     <div class="form-field">
       <label>Sonstige Kosten</label>
-      <p-inputnumber [ngModel]="calcCosts().other_cost" (ngModelChange)="updateCalcCost('other_cost', $event)" mode="currency" currency="EUR" />
+      <p-inputnumber [ngModel]="calcCosts().other_cost" (ngModelChange)="updateCalcCost('other_cost', $event)" mode="currency" currency="EUR" locale="de-DE" />
     </div>
   </div>
 
   <div class="form-field">
     <label>Marge (%)</label>
-    <p-inputnumber [ngModel]="calcMargin()" (ngModelChange)="calcMargin.set($event)" suffix=" %" />
+    <p-inputnumber locale="de-DE" [ngModel]="calcMargin()" (ngModelChange)="calcMargin.set($event)" suffix=" %" />
   </div>
   <div class="form-field">
     <label>Grund *</label>
