@@ -28,13 +28,13 @@
     "tslib": "^2.9.1"
   },
   "devDependencies": {
-    "@angular/build": "^22.2.6",
-    "@angular/cli": "^22.2.6",
+    "@angular/build": "^22.2.7",
+    "@angular/cli": "^22.2.7",
     "@angular/compiler-cli": "^22.2.6",
     "jsdom": "^30.1.2",
     "prettier": "^3.10.1",
     "typescript": "~6.0.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "engines": {
     "node": ">=22.22.3"
